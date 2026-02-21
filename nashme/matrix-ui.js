@@ -39,9 +39,13 @@
 
   // --- Helpers ---
 
-  function deckLabel(deck) {
+  function deckLabel(deck, weights) {
     if (!deck || !deck.cards) return deck ? deck.id : '?';
-    return deck.cards.join(' / ');
+    var label = deck.cards.join(' / ');
+    if (weights && weights[deck.id] !== undefined) {
+      label += ' (' + (weights[deck.id] * 100).toFixed(1) + '%)';
+    }
+    return label;
   }
 
   function nextResult(current) {
@@ -66,7 +70,7 @@
     return el;
   }
 
-  function render() {
+  function render(sortedDecks, weights) {
     injectStyles();
     var container = getContainer();
     container.innerHTML = '';
@@ -77,7 +81,7 @@
       return;
     }
 
-    var allDecks = data.getDecks();
+    var allDecks = sortedDecks || data.getDecks();
     if (allDecks.length === 0) {
       container.innerHTML = '<p class="nashme-matrix-empty">No decks yet. Add some decks to see the matchup matrix.</p>';
       return;
@@ -130,8 +134,8 @@
     var headerRow = document.createElement('tr');
     for (var c = 0; c < decks.length; c++) {
       var th = document.createElement('th');
-      th.textContent = deckLabel(decks[c]);
-      th.title = deckLabel(decks[c]);
+      th.textContent = deckLabel(decks[c], weights);
+      th.title = deckLabel(decks[c], weights);
       headerRow.appendChild(th);
     }
     thead.appendChild(headerRow);
@@ -144,8 +148,8 @@
       var tr = document.createElement('tr');
       // Row header
       var rowTh = document.createElement('th');
-      rowTh.textContent = deckLabel(decks[r]);
-      rowTh.title = deckLabel(decks[r]);
+      rowTh.textContent = deckLabel(decks[r], weights);
+      rowTh.title = deckLabel(decks[r], weights);
       if (r === 0) {
         // Add "On the Play" label to first row header area — already in corner cell
       }
@@ -176,9 +180,13 @@
     var next = nextResult(current);
     data.setMatchup(playId, drawId, next);
 
-    // Update just this cell
-    td.className = 'nashme-cell nashme-cell-' + (next || 'null');
-    td.textContent = next || '·';
+    // Refresh via equilibrium if available, otherwise update just this cell
+    if (window.NashmeEquilibriumUI) {
+      NashmeEquilibriumUI.refresh();
+    } else {
+      td.className = 'nashme-cell nashme-cell-' + (next || 'null');
+      td.textContent = next || '·';
+    }
   }
 
   // --- Export ---

@@ -176,3 +176,62 @@ h2 {
   border-color: #f1b0b7;
 }
 
+/* Equilibrium Config */
+#equilibrium-config {
+  margin: 1.5rem 0 0.5rem;
+}
+
+.eq-config-label {
+  font-size: 0.95rem;
+  color: #555;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.eq-win-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.eq-win-select:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+/* Next Matchup Recommendation */
+#next-matchup {
+  margin-bottom: 1rem;
+}
+
+.eq-next-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left: 4px solid #4a90d9;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+}
+
+.eq-next-msg {
+  color: #888;
+  font-style: italic;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.eq-next-done {
+  color: #155724;
+  font-style: normal;
+}
+
+.eq-needs-eval {
+  color: #856404;
+  font-weight: 600;
+}
+

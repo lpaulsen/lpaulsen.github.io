@@ -9,8 +9,13 @@
   var data = window.NashmeData;
 
   function refreshUIs() {
-    if (window.NashmeDecksUI) NashmeDecksUI.render();
-    if (window.NashmeMatrixUI) NashmeMatrixUI.render();
+    if (window.NashmeEquilibriumUI) {
+      NashmeEquilibriumUI.refresh();
+      if (window.NashmeDecksUI) NashmeDecksUI.render();
+    } else {
+      if (window.NashmeDecksUI) NashmeDecksUI.render();
+      if (window.NashmeMatrixUI) NashmeMatrixUI.render();
+    }
   }
 
   // --- Export ---

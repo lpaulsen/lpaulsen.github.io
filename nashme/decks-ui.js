@@ -84,7 +84,7 @@
       alert(err.message);
       return;
     }
-    if (window.NashmeMatrixUI) window.NashmeMatrixUI.render();
+    if (window.NashmeEquilibriumUI) NashmeEquilibriumUI.refresh(); else if (window.NashmeMatrixUI) NashmeMatrixUI.render();
     resetForm();
   }
 
