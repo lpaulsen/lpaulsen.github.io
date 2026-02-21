@@ -58,6 +58,23 @@
 
   // --- Next Matchup UI ---
 
+  function buildCardImages(cards) {
+    var html = '<div class="eq-next-deck-images">';
+    for (var i = 0; i < cards.length; i++) {
+      var name = cards[i];
+      var src = window.NashmeScryfall ? NashmeScryfall.getImageUrl(name) : '';
+      html +=
+        '<img src="' + src + '"' +
+        ' alt="' + name.replace(/"/g, '&quot;') + '"' +
+        ' loading="lazy"' +
+        ' onerror="this.outerHTML=\'<span class=\\\'eq-img-fallback\\\'>' +
+          name.replace(/'/g, '&#39;').replace(/"/g, '&quot;') +
+        '</span>\'">';
+    }
+    html += '</div>';
+    return html;
+  }
+
   function renderNextMatchup(nextPair, decks, matchups) {
     var container = document.getElementById('next-matchup');
     if (!container) return;
@@ -87,7 +104,8 @@
     var resultBA = matchups.hasOwnProperty(keyBA) ? matchups[keyBA] : null;
 
     // For mirror matches, only one direction
-    if (nextPair.deckA === nextPair.deckB) {
+    var isMirror = nextPair.deckA === nextPair.deckB;
+    if (isMirror) {
       var mirrorStatus = resultAB !== null ? '✓ ' + resultAB : '<span class="eq-needs-eval">needs eval</span>';
       directions.push('Mirror: ' + mirrorStatus);
     } else {
@@ -97,10 +115,35 @@
       directions.push('Draw: ' + drawStatus);
     }
 
+    // Build image layout
+    var imagesHtml;
+    if (isMirror) {
+      imagesHtml =
+        '<div class="eq-next-decks">' +
+          '<div class="eq-next-deck-group">' +
+            buildCardImages(deckA.cards) +
+            '<div class="eq-next-deck-name">Mirror match</div>' +
+          '</div>' +
+        '</div>';
+    } else {
+      imagesHtml =
+        '<div class="eq-next-decks">' +
+          '<div class="eq-next-deck-group">' +
+            buildCardImages(deckA.cards) +
+            '<div class="eq-next-deck-name">' + nameA + '</div>' +
+          '</div>' +
+          '<span class="eq-next-vs">vs</span>' +
+          '<div class="eq-next-deck-group">' +
+            buildCardImages(deckB.cards) +
+            '<div class="eq-next-deck-name">' + nameB + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
     container.innerHTML =
       '<div class="eq-next-card">' +
-        '<strong>' + nameA + '</strong> vs <strong>' + nameB + '</strong>' +
-        ' — ' + directions.join(' · ') +
+        imagesHtml +
+        '<div class="eq-next-direction">' + directions.join(' · ') + '</div>' +
       '</div>';
   }
 

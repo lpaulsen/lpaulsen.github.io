@@ -253,3 +253,71 @@ h2 {
   font-weight: 600;
 }
 
+/* Next Matchup Card Images */
+.eq-next-decks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.eq-next-deck-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.eq-next-deck-images {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.eq-next-deck-images img {
+  width: 80px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.eq-next-deck-images .eq-img-fallback {
+  width: 80px;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9ecef;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  color: #666;
+  text-align: center;
+  padding: 0.25rem;
+  word-break: break-word;
+}
+
+.eq-next-vs {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #666;
+  align-self: center;
+}
+
+.eq-next-deck-name {
+  font-size: 0.8rem;
+  color: #555;
+  text-align: center;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eq-next-direction {
+  text-align: center;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
