@@ -138,3 +138,41 @@ h2 {
   background: #ccc;
 }
 
+/* Data Management */
+#data-management {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.data-mgmt-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.data-mgmt-actions button {
+  padding: 0.5rem 1.25rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background: #fff;
+  color: #333;
+}
+
+.data-mgmt-actions button:hover {
+  background: #eee;
+  border-color: #999;
+}
+
+.data-mgmt-actions .btn-danger {
+  color: #721c24;
+  border-color: #f5c6cb;
+}
+
+.data-mgmt-actions .btn-danger:hover {
+  background: #f8d7da;
+  border-color: #f1b0b7;
+}
+

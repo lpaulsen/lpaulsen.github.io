@@ -150,6 +150,57 @@
     return copy;
   }
 
+  // --- Import / Export / Wipe ---
+
+  function exportData() {
+    return {
+      decks: JSON.parse(JSON.stringify(decks)),
+      matchups: getAllMatchups(),
+    };
+  }
+
+  function importData(obj) {
+    if (!obj || typeof obj !== 'object') {
+      throw new Error('Import data must be an object');
+    }
+    if (!Array.isArray(obj.decks)) {
+      throw new Error('Import data must contain a "decks" array');
+    }
+    if (!obj.matchups || typeof obj.matchups !== 'object') {
+      throw new Error('Import data must contain a "matchups" object');
+    }
+    // Validate each deck
+    var maxIdNum = 0;
+    for (var i = 0; i < obj.decks.length; i++) {
+      var d = obj.decks[i];
+      if (!d || typeof d.id !== 'string' || !Array.isArray(d.cards)) {
+        throw new Error('Each deck must have an "id" string and a "cards" array');
+      }
+      // Extract numeric portion to avoid ID collisions
+      var parts = d.id.match(/^deck-(\d+)$/);
+      if (parts) {
+        var num = parseInt(parts[1], 10);
+        if (num > maxIdNum) maxIdNum = num;
+      }
+    }
+    decks = JSON.parse(JSON.stringify(obj.decks));
+    matchups = {};
+    for (var key in obj.matchups) {
+      if (obj.matchups.hasOwnProperty(key)) {
+        matchups[key] = obj.matchups[key];
+      }
+    }
+    nextId = maxIdNum + 1;
+    save();
+  }
+
+  function wipeAll() {
+    decks = [];
+    matchups = {};
+    nextId = 1;
+    save();
+  }
+
   // --- Auto-load on initialization ---
   load();
 
@@ -161,6 +212,9 @@
     getMatchup: getMatchup,
     setMatchup: setMatchup,
     getAllMatchups: getAllMatchups,
+    exportData: exportData,
+    importData: importData,
+    wipeAll: wipeAll,
     save: save,
     load: load,
   };

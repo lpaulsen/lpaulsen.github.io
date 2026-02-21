@@ -141,6 +141,9 @@
     renderDeckList();
   }
 
+  // --- Export ---
+  window.NashmeDecksUI = { render: renderDeckList };
+
   // Run on DOMContentLoaded or immediately if already loaded
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
