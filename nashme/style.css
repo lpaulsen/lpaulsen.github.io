@@ -106,6 +106,24 @@ h2 {
   box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
 }
 
+/* Deck form errors */
+.deck-form-errors {
+  color: #c0392b;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.deck-form-errors p {
+  margin-bottom: 0.25rem;
+}
+
+/* Submit button disabled state */
+.deck-form-actions button[type="submit"]:disabled {
+  background: #a0c4e8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .deck-form-actions {
   display: flex;
   gap: 0.5rem;

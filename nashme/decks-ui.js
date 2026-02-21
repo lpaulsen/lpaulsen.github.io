@@ -8,7 +8,7 @@
   var editingDeckId = null;
 
   // --- DOM References (set after render) ---
-  var deckListEl, formEl, card1El, card2El, card3El, submitBtnEl, cancelBtnEl, emptyEl;
+  var deckListEl, formEl, card1El, card2El, card3El, submitBtnEl, cancelBtnEl, emptyEl, errorsEl;
 
   // --- Rendering ---
 
@@ -67,25 +67,90 @@
     renderDeckList();
   }
 
+  // --- Validation Helpers ---
+
+  function clearErrors() {
+    if (errorsEl) errorsEl.innerHTML = '';
+  }
+
+  function showErrors(messages) {
+    if (!errorsEl) return;
+    errorsEl.innerHTML = '';
+    for (var i = 0; i < messages.length; i++) {
+      var p = document.createElement('p');
+      p.textContent = messages[i];
+      errorsEl.appendChild(p);
+    }
+  }
+
+  function setSubmitting(busy) {
+    submitBtnEl.disabled = busy;
+    if (busy) {
+      submitBtnEl.textContent = 'Validating\u2026';
+    } else {
+      submitBtnEl.textContent = editingDeckId ? 'Save Deck' : 'Add Deck';
+    }
+  }
+
+  function validateCardWithDelay(cards, index, results) {
+    if (index >= cards.length) {
+      var corrected = [];
+      var errors = [];
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].valid) {
+          corrected.push(results[i].correctedName || cards[i]);
+        } else {
+          errors.push('"' + cards[i] + '" is not a valid card name');
+        }
+      }
+      return Promise.resolve({ valid: errors.length === 0, correctedCards: corrected, errors: errors });
+    }
+    return NashmeScryfall.validateCard(cards[index]).then(function (result) {
+      results.push(result);
+      return new Promise(function (resolve) {
+        setTimeout(function () { resolve(validateCardWithDelay(cards, index + 1, results)); }, 100);
+      });
+    });
+  }
+
+  function validateAllCards(cards) {
+    var results = [];
+    return validateCardWithDelay(cards, 0, results);
+  }
+
   // --- Event Handlers ---
 
   function handleSubmit(e) {
     e.preventDefault();
+    clearErrors();
     var cards = [card1El.value.trim(), card2El.value.trim(), card3El.value.trim()];
     if (!cards[0] || !cards[1] || !cards[2]) return;
 
-    try {
-      if (editingDeckId) {
-        data.updateDeck(editingDeckId, cards);
-      } else {
-        data.addDeck(cards);
+    setSubmitting(true);
+
+    validateAllCards(cards).then(function (result) {
+      if (!result.valid) {
+        showErrors(result.errors);
+        setSubmitting(false);
+        return;
       }
-    } catch (err) {
-      alert(err.message);
-      return;
-    }
-    if (window.NashmeEquilibriumUI) NashmeEquilibriumUI.refresh(); else if (window.NashmeMatrixUI) NashmeMatrixUI.render();
-    resetForm();
+
+      var finalCards = result.correctedCards;
+      try {
+        if (editingDeckId) {
+          data.updateDeck(editingDeckId, finalCards);
+        } else {
+          data.addDeck(finalCards);
+        }
+      } catch (err) {
+        showErrors([err.message]);
+        setSubmitting(false);
+        return;
+      }
+      if (window.NashmeEquilibriumUI) NashmeEquilibriumUI.refresh(); else if (window.NashmeMatrixUI) NashmeMatrixUI.render();
+      setSubmitting(false);
+      resetForm();
+    });
   }
 
   function handleCancel() {
@@ -119,6 +184,7 @@
         '<input type="text" id="card1" placeholder="Card 1" autocomplete="off">' +
         '<input type="text" id="card2" placeholder="Card 2" autocomplete="off">' +
         '<input type="text" id="card3" placeholder="Card 3" autocomplete="off">' +
+        '<div class="deck-form-errors" id="deck-form-errors"></div>' +
         '<div class="deck-form-actions">' +
           '<button type="submit" id="deck-submit">Add Deck</button>' +
           '<button type="button" id="deck-cancel" style="display:none">Cancel</button>' +
@@ -133,6 +199,7 @@
     submitBtnEl = document.getElementById('deck-submit');
     cancelBtnEl = document.getElementById('deck-cancel');
     emptyEl = document.getElementById('deck-empty');
+    errorsEl = document.getElementById('deck-form-errors');
 
     formEl.addEventListener('submit', handleSubmit);
     cancelBtnEl.addEventListener('click', handleCancel);
