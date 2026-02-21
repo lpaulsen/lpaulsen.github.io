@@ -47,6 +47,30 @@
     return id;
   }
 
+  // --- Helpers ---
+
+  function normalizeCards(cards) {
+    return [cards[0], cards[1], cards[2]].sort(function (a, b) {
+      return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    });
+  }
+
+  function hasDuplicateDeck(cards, excludeId) {
+    var sorted = normalizeCards(cards);
+    for (var i = 0; i < decks.length; i++) {
+      if (excludeId && decks[i].id === excludeId) continue;
+      var existing = decks[i].cards;
+      if (
+        existing[0] === sorted[0] &&
+        existing[1] === sorted[1] &&
+        existing[2] === sorted[2]
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // --- Deck API ---
 
   function getDecks() {
@@ -57,9 +81,13 @@
     if (!Array.isArray(cards) || cards.length !== 3) {
       throw new Error('A deck must have exactly 3 cards');
     }
+    var sorted = normalizeCards(cards);
+    if (hasDuplicateDeck(sorted)) {
+      throw new Error('A deck with these cards already exists');
+    }
     var deck = {
       id: generateId(),
-      cards: [cards[0], cards[1], cards[2]],
+      cards: sorted,
     };
     decks.push(deck);
     save();
@@ -70,9 +98,13 @@
     if (!Array.isArray(cards) || cards.length !== 3) {
       throw new Error('A deck must have exactly 3 cards');
     }
+    var sorted = normalizeCards(cards);
+    if (hasDuplicateDeck(sorted, id)) {
+      throw new Error('A deck with these cards already exists');
+    }
     for (var i = 0; i < decks.length; i++) {
       if (decks[i].id === id) {
-        decks[i].cards = [cards[0], cards[1], cards[2]];
+        decks[i].cards = sorted;
         save();
         return { id: decks[i].id, cards: decks[i].cards.slice() };
       }

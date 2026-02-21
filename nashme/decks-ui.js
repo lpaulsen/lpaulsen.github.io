@@ -74,10 +74,15 @@
     var cards = [card1El.value.trim(), card2El.value.trim(), card3El.value.trim()];
     if (!cards[0] || !cards[1] || !cards[2]) return;
 
-    if (editingDeckId) {
-      data.updateDeck(editingDeckId, cards);
-    } else {
-      data.addDeck(cards);
+    try {
+      if (editingDeckId) {
+        data.updateDeck(editingDeckId, cards);
+      } else {
+        data.addDeck(cards);
+      }
+    } catch (err) {
+      alert(err.message);
+      return;
     }
     if (window.NashmeMatrixUI) window.NashmeMatrixUI.render();
     resetForm();
