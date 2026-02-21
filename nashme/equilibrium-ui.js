@@ -75,6 +75,78 @@
     return html;
   }
 
+  function buildWtlControls(playId, drawId, currentResult, label) {
+    var results = ['W', 'T', 'L'];
+    var html = '<div class="eq-direction-row">';
+    html += '<span class="eq-direction-label">' + label + ':</span> ';
+    if (currentResult !== null) {
+      // Already evaluated — show read-only badge
+      html += '<span class="eq-result-badge eq-result-' + currentResult + '">' + currentResult + '</span>';
+    } else {
+      // Unevaluated — show W/T/L buttons
+      html += '<span class="eq-wtl-group" data-play-id="' + playId + '" data-draw-id="' + drawId + '">';
+      for (var i = 0; i < results.length; i++) {
+        html += '<button type="button" class="eq-wtl-btn eq-wtl-' + results[i] + '" data-result="' + results[i] + '">' + results[i] + '</button>';
+      }
+      html += '</span>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function attachWtlListeners(container) {
+    var groups = container.querySelectorAll('.eq-wtl-group');
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g];
+      var buttons = group.querySelectorAll('.eq-wtl-btn');
+      for (var b = 0; b < buttons.length; b++) {
+        buttons[b].addEventListener('click', handleWtlClick);
+      }
+    }
+  }
+
+  function handleWtlClick(e) {
+    var btn = e.currentTarget;
+    var group = btn.parentElement;
+    var playId = group.dataset.playId;
+    var drawId = group.dataset.drawId;
+    var result = btn.dataset.result;
+    var data = window.NashmeData;
+    if (!data) return;
+
+    // Check if this button is already active (toggle off)
+    if (btn.classList.contains('active')) {
+      btn.classList.remove('active');
+      data.setMatchup(playId, drawId, null);
+    } else {
+      // Deactivate siblings, activate this one
+      var siblings = group.querySelectorAll('.eq-wtl-btn');
+      for (var i = 0; i < siblings.length; i++) {
+        siblings[i].classList.remove('active');
+      }
+      btn.classList.add('active');
+      data.setMatchup(playId, drawId, result);
+    }
+
+    // Update Submit button disabled state
+    updateSubmitBtnState();
+  }
+
+  function updateSubmitBtnState() {
+    var submitBtn = document.getElementById('eq-submit-next');
+    if (!submitBtn) return;
+    // Enable if any wtl group has an active button
+    var groups = document.querySelectorAll('.eq-wtl-group');
+    var anySet = false;
+    for (var g = 0; g < groups.length; g++) {
+      if (groups[g].querySelector('.eq-wtl-btn.active')) {
+        anySet = true;
+        break;
+      }
+    }
+    submitBtn.disabled = !anySet;
+  }
+
   function renderNextMatchup(nextPair, decks, matchups) {
     var container = document.getElementById('next-matchup');
     if (!container) return;
@@ -94,26 +166,23 @@
     var nameA = deckName(deckA);
     var nameB = deckName(deckB);
 
-    // Build direction statuses
-    var directions = [];
-    // Check A on play vs B on draw
+    // Check directions
     var keyAB = nextPair.deckA + ':' + nextPair.deckB;
     var resultAB = matchups.hasOwnProperty(keyAB) ? matchups[keyAB] : null;
-    // Check B on play vs A on draw
     var keyBA = nextPair.deckB + ':' + nextPair.deckA;
     var resultBA = matchups.hasOwnProperty(keyBA) ? matchups[keyBA] : null;
 
-    // For mirror matches, only one direction
     var isMirror = nextPair.deckA === nextPair.deckB;
+
+    // Build direction controls
+    var directionsHtml = '<div class="eq-next-directions">';
     if (isMirror) {
-      var mirrorStatus = resultAB !== null ? '✓ ' + resultAB : '<span class="eq-needs-eval">needs eval</span>';
-      directions.push('Mirror: ' + mirrorStatus);
+      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, 'Mirror');
     } else {
-      var playStatus = resultAB !== null ? '✓ ' + resultAB : '<span class="eq-needs-eval">needs eval</span>';
-      var drawStatus = resultBA !== null ? '✓ ' + resultBA : '<span class="eq-needs-eval">needs eval</span>';
-      directions.push('Play: ' + playStatus);
-      directions.push('Draw: ' + drawStatus);
+      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, nameA + ' on play');
+      directionsHtml += buildWtlControls(nextPair.deckB, nextPair.deckA, resultBA, nameB + ' on play');
     }
+    directionsHtml += '</div>';
 
     // Build image layout
     var imagesHtml;
@@ -140,11 +209,27 @@
         '</div>';
     }
 
+    // Determine if any directions are unevaluated (for submit button state)
+    var hasUnevaluated = isMirror ? (resultAB === null) : (resultAB === null || resultBA === null);
+
     container.innerHTML =
       '<div class="eq-next-card">' +
         imagesHtml +
-        '<div class="eq-next-direction">' + directions.join(' · ') + '</div>' +
+        directionsHtml +
+        (hasUnevaluated
+          ? '<button type="button" id="eq-submit-next" class="eq-submit-btn" disabled>Submit &amp; Next</button>'
+          : '') +
       '</div>';
+
+    // Attach event listeners
+    attachWtlListeners(container);
+
+    var submitBtn = document.getElementById('eq-submit-next');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function () {
+        refresh();
+      });
+    }
   }
 
   // --- Main Refresh ---

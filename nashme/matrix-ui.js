@@ -21,9 +21,9 @@
       '.nashme-matrix-empty { color: #888; font-style: italic; padding: 1rem 0; }',
       'table.nashme-matrix { border-collapse: collapse; min-width: max-content; }',
       'table.nashme-matrix th, table.nashme-matrix td { border: 1px solid #ccc; text-align: center; min-width: 48px; height: 40px; font-size: 0.85rem; padding: 4px 6px; }',
-      'table.nashme-matrix thead th { background: #e9ecef; position: sticky; top: 0; z-index: 2; }',
+      'table.nashme-matrix thead th { background: #e9ecef; position: sticky; top: 0; z-index: 2; font-size: 0.7rem; max-width: 100px; word-wrap: break-word; white-space: normal; }',
       'table.nashme-matrix thead th.nashme-corner { z-index: 3; }',
-      'table.nashme-matrix tbody th { background: #e9ecef; position: sticky; left: 0; z-index: 1; text-align: right; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }',
+      'table.nashme-matrix tbody th { background: #e9ecef; position: sticky; left: 0; z-index: 1; text-align: right; white-space: normal; max-width: 120px; overflow: hidden; text-overflow: ellipsis; font-size: 0.7rem; word-wrap: break-word; }',
       'table.nashme-matrix .nashme-axis-label { font-weight: 600; font-size: 0.75rem; color: #555; }',
       'table.nashme-matrix td.nashme-cell { cursor: pointer; font-weight: 700; font-size: 1rem; transition: background 0.15s; user-select: none; }',
       'table.nashme-matrix td.nashme-cell:hover { filter: brightness(0.92); }',
@@ -40,6 +40,15 @@
   // --- Helpers ---
 
   function deckLabel(deck, weights) {
+    if (!deck || !deck.cards) return deck ? deck.id : '?';
+    var lines = deck.cards.slice();
+    if (weights && weights[deck.id] !== undefined) {
+      lines.push('<strong>' + (weights[deck.id] * 100).toFixed(1) + '%</strong>');
+    }
+    return lines.join('<br>');
+  }
+
+  function deckLabelPlain(deck, weights) {
     if (!deck || !deck.cards) return deck ? deck.id : '?';
     var label = deck.cards.join(' / ');
     if (weights && weights[deck.id] !== undefined) {
@@ -102,6 +111,16 @@
       container.appendChild(warn);
     }
 
+    // Refresh Grid button
+    var refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'nashme-refresh-btn';
+    refreshBtn.textContent = 'Refresh Grid';
+    refreshBtn.addEventListener('click', function () {
+      if (window.NashmeEquilibriumUI) NashmeEquilibriumUI.refresh();
+    });
+    container.appendChild(refreshBtn);
+
     // Scrollable wrapper
     var wrap = document.createElement('div');
     wrap.className = 'nashme-matrix-wrap';
@@ -134,8 +153,8 @@
     var headerRow = document.createElement('tr');
     for (var c = 0; c < decks.length; c++) {
       var th = document.createElement('th');
-      th.textContent = deckLabel(decks[c], weights);
-      th.title = deckLabel(decks[c], weights);
+      th.innerHTML = deckLabel(decks[c], weights);
+      th.title = deckLabelPlain(decks[c], weights);
       headerRow.appendChild(th);
     }
     thead.appendChild(headerRow);
@@ -148,8 +167,8 @@
       var tr = document.createElement('tr');
       // Row header
       var rowTh = document.createElement('th');
-      rowTh.textContent = deckLabel(decks[r], weights);
-      rowTh.title = deckLabel(decks[r], weights);
+      rowTh.innerHTML = deckLabel(decks[r], weights);
+      rowTh.title = deckLabelPlain(decks[r], weights);
       if (r === 0) {
         // Add "On the Play" label to first row header area — already in corner cell
       }
@@ -180,13 +199,9 @@
     var next = nextResult(current);
     data.setMatchup(playId, drawId, next);
 
-    // Refresh via equilibrium if available, otherwise update just this cell
-    if (window.NashmeEquilibriumUI) {
-      NashmeEquilibriumUI.refresh();
-    } else {
-      td.className = 'nashme-cell nashme-cell-' + (next || 'null');
-      td.textContent = next || '·';
-    }
+    // Always update just this cell — no full refresh
+    td.className = 'nashme-cell nashme-cell-' + (next || 'null');
+    td.textContent = next || '·';
   }
 
   // --- Export ---

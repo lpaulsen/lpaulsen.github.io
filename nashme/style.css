@@ -321,3 +321,148 @@ h2 {
   margin-top: 0.25rem;
 }
 
+/* Next Matchup Direction Controls */
+.eq-next-directions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.eq-direction-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.eq-direction-label {
+  color: #555;
+  min-width: 0;
+  flex-shrink: 1;
+  font-size: 0.8rem;
+}
+
+/* W/T/L button group */
+.eq-wtl-group {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.eq-wtl-btn {
+  width: 32px;
+  height: 28px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.75rem;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.eq-wtl-btn:hover {
+  filter: brightness(0.92);
+}
+
+.eq-wtl-W {
+  border-color: #28a745;
+  color: #155724;
+}
+
+.eq-wtl-T {
+  border-color: #ffc107;
+  color: #856404;
+}
+
+.eq-wtl-L {
+  border-color: #dc3545;
+  color: #721c24;
+}
+
+.eq-wtl-btn.active.eq-wtl-W {
+  background: #28a745;
+  color: #fff;
+}
+
+.eq-wtl-btn.active.eq-wtl-T {
+  background: #ffc107;
+  color: #333;
+}
+
+.eq-wtl-btn.active.eq-wtl-L {
+  background: #dc3545;
+  color: #fff;
+}
+
+/* Read-only result badge */
+.eq-result-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.eq-result-W {
+  background: #d4edda;
+  color: #155724;
+}
+
+.eq-result-T {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.eq-result-L {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Submit & Next button */
+.eq-submit-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  background: #4a90d9;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.eq-submit-btn:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+.eq-submit-btn:disabled {
+  background: #a0c4e8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Refresh Grid button */
+.nashme-refresh-btn {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.nashme-refresh-btn:hover {
+  background: #eee;
+  border-color: #999;
+}
+
