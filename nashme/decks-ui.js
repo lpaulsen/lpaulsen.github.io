@@ -79,6 +79,7 @@
     } else {
       data.addDeck(cards);
     }
+    if (window.NashmeMatrixUI) window.NashmeMatrixUI.render();
     resetForm();
   }
 
