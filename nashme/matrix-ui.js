@@ -153,18 +153,12 @@
 
       for (var col = 0; col < decks.length; col++) {
         var td = document.createElement('td');
-        if (r === col) {
-          // Diagonal
-          td.className = 'nashme-diagonal';
-          td.textContent = '—';
-        } else {
-          var result = data.getMatchup(decks[r].id, decks[col].id);
-          td.className = 'nashme-cell nashme-cell-' + (result || 'null');
-          td.textContent = result || '·';
-          td.dataset.playId = decks[r].id;
-          td.dataset.drawId = decks[col].id;
-          td.addEventListener('click', handleCellClick);
-        }
+        var result = data.getMatchup(decks[r].id, decks[col].id);
+        td.className = 'nashme-cell nashme-cell-' + (result || 'null');
+        td.textContent = result || '·';
+        td.dataset.playId = decks[r].id;
+        td.dataset.drawId = decks[col].id;
+        td.addEventListener('click', handleCellClick);
         tr.appendChild(td);
       }
       tbody.appendChild(tr);

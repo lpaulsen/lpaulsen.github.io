@@ -54,8 +54,8 @@
         var drawResult = matchups.hasOwnProperty(drawKey) ? matchups[drawKey] : null;
 
         // For the diagonal (mirror match), both keys are "i:i".
-        // setMatchup prevents storing i:i, so both will be null → treated as T.
-        // M[i][i] = scorePlay(null) + scoreDraw(null) = 1 + 1 = 2
+        // Mirror matches can be stored and are evaluated normally.
+        // If unevaluated, null → treated as T: scorePlay(null) + scoreDraw(null) = 1 + 1 = 2
 
         M[i][j] = scorePlay(playResult, winPoints) + scoreDraw(drawResult, winPoints);
       }
@@ -138,21 +138,22 @@
         var unevaluated = [];
 
         if (i === j) {
-          // Mirror match: stored key would be "i:i" but setMatchup prevents it.
-          // So mirror is always "unevaluated" in the data store.
-          // However, we treat mirrors as known (T by default), so skip them.
-          continue;
-        }
+          // Mirror match: only one key "i:i" (same deck on play and draw)
+          var mirrorKey = idI + ':' + idI;
+          if (!matchups.hasOwnProperty(mirrorKey)) {
+            unevaluated.push({ playId: idI, drawId: idI });
+          }
+        } else {
+          // Check both ordered matchups in the pair
+          var keyIJ = idI + ':' + idJ;
+          var keyJI = idJ + ':' + idI;
 
-        // Check both ordered matchups in the pair
-        var keyIJ = idI + ':' + idJ;
-        var keyJI = idJ + ':' + idI;
-
-        if (!matchups.hasOwnProperty(keyIJ)) {
-          unevaluated.push({ playId: idI, drawId: idJ });
-        }
-        if (!matchups.hasOwnProperty(keyJI)) {
-          unevaluated.push({ playId: idJ, drawId: idI });
+          if (!matchups.hasOwnProperty(keyIJ)) {
+            unevaluated.push({ playId: idI, drawId: idJ });
+          }
+          if (!matchups.hasOwnProperty(keyJI)) {
+            unevaluated.push({ playId: idJ, drawId: idI });
+          }
         }
 
         if (unevaluated.length === 0) continue;

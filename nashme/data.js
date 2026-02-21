@@ -125,9 +125,6 @@
   }
 
   function setMatchup(playId, drawId, result) {
-    if (playId === drawId) {
-      throw new Error('Play and draw deck must be different');
-    }
     if (result !== 'W' && result !== 'T' && result !== 'L' && result !== null) {
       throw new Error('Result must be "W", "T", "L", or null');
     }
