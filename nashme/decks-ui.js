@@ -77,16 +77,26 @@
     var decks = data.getDecks();
     deckListEl.innerHTML = '';
 
+    var showBanned = getShowBanned();
+
     var countEl = document.getElementById('deck-count');
-    if (countEl) countEl.textContent = decks.length;
+    if (countEl) {
+      if (showBanned) {
+        countEl.textContent = decks.length;
+      } else {
+        var legalCount = 0;
+        for (var c = 0; c < decks.length; c++) {
+          if (!data.isDeckBanned(decks[c])) legalCount++;
+        }
+        countEl.textContent = legalCount;
+      }
+    }
 
     if (decks.length === 0) {
       emptyEl.style.display = '';
       return;
     }
     emptyEl.style.display = 'none';
-
-    var showBanned = getShowBanned();
 
     for (var i = 0; i < decks.length; i++) {
       var deck = decks[i];
