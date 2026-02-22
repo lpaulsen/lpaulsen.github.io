@@ -77,6 +77,9 @@
     var decks = data.getDecks();
     deckListEl.innerHTML = '';
 
+    var countEl = document.getElementById('deck-count');
+    if (countEl) countEl.textContent = decks.length;
+
     if (decks.length === 0) {
       emptyEl.style.display = '';
       return;
@@ -272,21 +275,24 @@
     if (!container) return;
 
     var showBannedChecked = getShowBanned() ? ' checked' : '';
+    var isCollapsed = localStorage.getItem('nashme_decks_collapsed') !== 'false'; // default collapsed
     container.innerHTML =
-      '<h2>Decks</h2>' +
-      '<label class="deck-banned-toggle"><input type="checkbox" id="show-banned-toggle"' + showBannedChecked + '> Show banned decks</label>' +
-      '<p class="empty-state" id="deck-empty">No decks yet. Add one below!</p>' +
-      '<ul class="deck-list" id="deck-list"></ul>' +
-      '<form class="deck-form" id="deck-form">' +
-        '<input type="text" id="card1" placeholder="Card 1" autocomplete="off">' +
-        '<input type="text" id="card2" placeholder="Card 2" autocomplete="off">' +
-        '<input type="text" id="card3" placeholder="Card 3" autocomplete="off">' +
-        '<div class="deck-form-errors" id="deck-form-errors"></div>' +
-        '<div class="deck-form-actions">' +
-          '<button type="submit" id="deck-submit">Add Deck</button>' +
-          '<button type="button" id="deck-cancel" style="display:none">Cancel</button>' +
-        '</div>' +
-      '</form>';
+      '<h2 class="deck-section-toggle" id="deck-toggle">' + (isCollapsed ? '▸' : '▾') + ' Decks (<span id="deck-count">0</span>)</h2>' +
+      '<div id="deck-section-body" class="deck-section-body"' + (isCollapsed ? ' style="display:none"' : '') + '>' +
+        '<label class="deck-banned-toggle"><input type="checkbox" id="show-banned-toggle"' + showBannedChecked + '> Show banned decks</label>' +
+        '<p class="empty-state" id="deck-empty">No decks yet. Add one below!</p>' +
+        '<ul class="deck-list" id="deck-list"></ul>' +
+        '<form class="deck-form" id="deck-form">' +
+          '<input type="text" id="card1" placeholder="Card 1" autocomplete="off">' +
+          '<input type="text" id="card2" placeholder="Card 2" autocomplete="off">' +
+          '<input type="text" id="card3" placeholder="Card 3" autocomplete="off">' +
+          '<p class="deck-form-errors" id="deck-errors"></p>' +
+          '<div class="deck-form-actions">' +
+            '<button type="submit" id="deck-submit">Add Deck</button>' +
+            '<button type="button" id="deck-cancel" style="display:none">Cancel</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>';
 
     deckListEl = document.getElementById('deck-list');
     formEl = document.getElementById('deck-form');
@@ -296,7 +302,7 @@
     submitBtnEl = document.getElementById('deck-submit');
     cancelBtnEl = document.getElementById('deck-cancel');
     emptyEl = document.getElementById('deck-empty');
-    errorsEl = document.getElementById('deck-form-errors');
+    errorsEl = document.getElementById('deck-errors');
 
     formEl.addEventListener('submit', handleSubmit);
     cancelBtnEl.addEventListener('click', handleCancel);
@@ -312,6 +318,16 @@
       var target = e.target.closest('[data-cards]');
       if (target) hideTooltip();
     }, true);
+
+    // Collapsible deck section toggle
+    var toggleEl = document.getElementById('deck-toggle');
+    toggleEl.addEventListener('click', function () {
+      var body = document.getElementById('deck-section-body');
+      var collapsed = body.style.display === 'none';
+      body.style.display = collapsed ? '' : 'none';
+      toggleEl.textContent = (collapsed ? '▾' : '▸') + ' Decks (' + document.getElementById('deck-count').textContent + ')';
+      localStorage.setItem('nashme_decks_collapsed', collapsed ? 'false' : 'true');
+    });
 
     // Show/hide banned decks toggle
     var showBannedToggle = document.getElementById('show-banned-toggle');

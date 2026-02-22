@@ -179,7 +179,7 @@
     var html = '<div class="eq-next-deck-images">';
     for (var i = 0; i < cards.length; i++) {
       var name = cards[i];
-      var src = window.NashmeScryfall ? NashmeScryfall.getImageUrl(name) : '';
+      var src = window.NashmeScryfall ? NashmeScryfall.getImageUrl(name, 'normal') : '';
       html +=
         '<img src="' + src + '"' +
         ' alt="' + name.replace(/"/g, '&quot;') + '"' +
