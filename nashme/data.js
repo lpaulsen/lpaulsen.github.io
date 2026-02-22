@@ -171,29 +171,80 @@
     if (!obj.matchups || typeof obj.matchups !== 'object') {
       throw new Error('Import data must contain a "matchups" object');
     }
-    // Validate each deck
-    var maxIdNum = 0;
+
+    // Validate each imported deck
     for (var i = 0; i < obj.decks.length; i++) {
       var d = obj.decks[i];
       if (!d || typeof d.id !== 'string' || !Array.isArray(d.cards)) {
         throw new Error('Each deck must have an "id" string and a "cards" array');
       }
-      // Extract numeric portion to avoid ID collisions
-      var parts = d.id.match(/^deck-(\d+)$/);
+    }
+
+    // Build a lookup of existing decks by normalized card key
+    function cardKey(cards) {
+      var sorted = normalizeCards(cards);
+      return sorted.join('|||').toLowerCase();
+    }
+
+    var existingByCards = {};
+    for (var i = 0; i < decks.length; i++) {
+      existingByCards[cardKey(decks[i].cards)] = decks[i].id;
+    }
+
+    // Track max numeric ID from imported data to avoid collisions
+    var idMap = {};
+    var maxIdNum = nextId - 1;
+
+    for (var i = 0; i < obj.decks.length; i++) {
+      var imported = obj.decks[i];
+      var key = cardKey(imported.cards);
+
+      // Extract numeric portion from imported ID
+      var parts = imported.id.match(/^deck-(\d+)$/);
       if (parts) {
         var num = parseInt(parts[1], 10);
         if (num > maxIdNum) maxIdNum = num;
       }
-    }
-    decks = JSON.parse(JSON.stringify(obj.decks));
-    matchups = {};
-    for (var key in obj.matchups) {
-      if (obj.matchups.hasOwnProperty(key)) {
-        matchups[key] = obj.matchups[key];
+
+      if (existingByCards[key]) {
+        // Deck already exists locally — map imported ID to existing ID
+        idMap[imported.id] = existingByCards[key];
+      } else {
+        // New deck — create with fresh ID
+        var newDeck = {
+          id: generateId(),
+          cards: normalizeCards(imported.cards),
+        };
+        decks.push(newDeck);
+        existingByCards[key] = newDeck.id;
+        idMap[imported.id] = newDeck.id;
       }
     }
-    banlist = Array.isArray(obj.banlist) ? obj.banlist.slice() : [];
-    nextId = maxIdNum + 1;
+
+    // Merge matchups — remap IDs
+    for (var key in obj.matchups) {
+      if (!obj.matchups.hasOwnProperty(key)) continue;
+      var parts = key.split(':');
+      if (parts.length !== 2) continue;
+      var playId = idMap[parts[0]];
+      var drawId = idMap[parts[1]];
+      if (!playId || !drawId) continue; // skip unmappable
+      var newKey = playId + ':' + drawId;
+      matchups[newKey] = obj.matchups[key];
+    }
+
+    // Merge banlist
+    if (Array.isArray(obj.banlist)) {
+      for (var i = 0; i < obj.banlist.length; i++) {
+        addBan(obj.banlist[i]);
+      }
+    }
+
+    // Ensure nextId is high enough to avoid collisions
+    if (maxIdNum >= nextId) {
+      nextId = maxIdNum + 1;
+    }
+
     save();
   }
 
