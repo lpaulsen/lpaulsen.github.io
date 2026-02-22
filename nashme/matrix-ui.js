@@ -9,6 +9,57 @@
 
   var MAX_DECKS = 50;
   var CYCLE = [null, 'W', 'T', 'L'];
+  var tooltipListenersAttached = false;
+
+  // --- Tooltip Helpers ---
+  var tooltipTimer = null;
+  var tooltipEl = null;
+
+  function ensureTooltip() {
+    tooltipEl = document.getElementById('nashme-card-tooltip');
+    if (!tooltipEl) {
+      tooltipEl = document.createElement('div');
+      tooltipEl.id = 'nashme-card-tooltip';
+      tooltipEl.className = 'nashme-card-tooltip';
+      tooltipEl.style.display = 'none';
+      tooltipEl.innerHTML = '<img src="" alt="" />';
+      document.body.appendChild(tooltipEl);
+    }
+  }
+
+  function showTooltip(target) {
+    clearTimeout(tooltipTimer);
+    var cardName = target.getAttribute('data-card');
+    if (!cardName || !window.NashmeScryfall) return;
+
+    tooltipTimer = setTimeout(function () {
+      ensureTooltip();
+      var img = tooltipEl.querySelector('img');
+      img.src = NashmeScryfall.getImageUrl(cardName, 'normal');
+      img.alt = cardName;
+
+      var rect = target.getBoundingClientRect();
+      var top = rect.bottom + 8;
+      var left = rect.left + (rect.width / 2) - 124;
+
+      if (left < 8) left = 8;
+      if (left + 248 > window.innerWidth - 8) left = window.innerWidth - 256;
+
+      if (top + 360 > window.innerHeight) {
+        top = rect.top - 360 - 8;
+        if (top < 8) top = 8;
+      }
+
+      tooltipEl.style.left = left + 'px';
+      tooltipEl.style.top = top + 'px';
+      tooltipEl.style.display = 'block';
+    }, 200);
+  }
+
+  function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    if (tooltipEl) tooltipEl.style.display = 'none';
+  }
 
   // --- Inject styles ---
   function injectStyles() {
@@ -41,7 +92,12 @@
 
   function deckLabel(deck, weights) {
     if (!deck || !deck.cards) return deck ? deck.id : '?';
-    var lines = deck.cards.slice();
+    var lines = [];
+    for (var i = 0; i < deck.cards.length; i++) {
+      var card = deck.cards[i];
+      var escaped = card.replace(/"/g, '&quot;');
+      lines.push('<span class="nashme-card-hover" data-card="' + escaped + '">' + card + '</span>');
+    }
     if (weights && weights[deck.id] !== undefined) {
       lines.push('<strong>' + (weights[deck.id] * 100).toFixed(1) + '%</strong>');
     }
@@ -185,6 +241,21 @@
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
+    }
+
+    // Tooltip event delegation (attach only once)
+    if (!tooltipListenersAttached) {
+      container.addEventListener('mouseenter', function (e) {
+        var hover = e.target.closest('.nashme-card-hover');
+        if (hover) showTooltip(hover);
+      }, true);
+
+      container.addEventListener('mouseleave', function (e) {
+        var hover = e.target.closest('.nashme-card-hover');
+        if (hover) hideTooltip();
+      }, true);
+
+      tooltipListenersAttached = true;
     }
   }
 

@@ -10,6 +10,56 @@
   // --- DOM References (set after render) ---
   var deckListEl, formEl, card1El, card2El, card3El, submitBtnEl, cancelBtnEl, emptyEl, errorsEl;
 
+  // --- Tooltip Helpers ---
+  var tooltipTimer = null;
+  var tooltipEl = null;
+
+  function ensureTooltip() {
+    tooltipEl = document.getElementById('nashme-card-tooltip');
+    if (!tooltipEl) {
+      tooltipEl = document.createElement('div');
+      tooltipEl.id = 'nashme-card-tooltip';
+      tooltipEl.className = 'nashme-card-tooltip';
+      tooltipEl.style.display = 'none';
+      tooltipEl.innerHTML = '<img src="" alt="" />';
+      document.body.appendChild(tooltipEl);
+    }
+  }
+
+  function showTooltip(target) {
+    clearTimeout(tooltipTimer);
+    var cardName = target.getAttribute('data-card');
+    if (!cardName || !window.NashmeScryfall) return;
+
+    tooltipTimer = setTimeout(function () {
+      ensureTooltip();
+      var img = tooltipEl.querySelector('img');
+      img.src = NashmeScryfall.getImageUrl(cardName, 'normal');
+      img.alt = cardName;
+
+      var rect = target.getBoundingClientRect();
+      var top = rect.bottom + 8;
+      var left = rect.left + (rect.width / 2) - 124;
+
+      if (left < 8) left = 8;
+      if (left + 248 > window.innerWidth - 8) left = window.innerWidth - 256;
+
+      if (top + 360 > window.innerHeight) {
+        top = rect.top - 360 - 8;
+        if (top < 8) top = 8;
+      }
+
+      tooltipEl.style.left = left + 'px';
+      tooltipEl.style.top = top + 'px';
+      tooltipEl.style.display = 'block';
+    }, 200);
+  }
+
+  function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    if (tooltipEl) tooltipEl.style.display = 'none';
+  }
+
   // --- Rendering ---
 
   function getShowBanned() {
@@ -54,10 +104,12 @@
       for (var c = 0; c < deck.cards.length; c++) {
         if (c > 0) cardHtml += ' · ';
         var cardName = deck.cards[c];
+        var escapedName = cardName.replace(/"/g, '&quot;');
+        var hoverSpan = '<span class="nashme-card-hover" data-card="' + escapedName + '">' + cardName + '</span>';
         if (data.isBanned(cardName)) {
-          cardHtml += '<span class="deck-card--banned">' + cardName + '</span>';
+          cardHtml += '<span class="deck-card--banned">' + hoverSpan + '</span>';
         } else {
-          cardHtml += cardName;
+          cardHtml += hoverSpan;
         }
       }
       label.innerHTML = cardHtml;
@@ -241,6 +293,17 @@
     formEl.addEventListener('submit', handleSubmit);
     cancelBtnEl.addEventListener('click', handleCancel);
     deckListEl.addEventListener('click', handleDeckClick);
+
+    // Tooltip event delegation
+    container.addEventListener('mouseenter', function (e) {
+      var hover = e.target.closest('.nashme-card-hover');
+      if (hover) showTooltip(hover);
+    }, true);
+
+    container.addEventListener('mouseleave', function (e) {
+      var hover = e.target.closest('.nashme-card-hover');
+      if (hover) hideTooltip();
+    }, true);
 
     // Show/hide banned decks toggle
     var showBannedToggle = document.getElementById('show-banned-toggle');
