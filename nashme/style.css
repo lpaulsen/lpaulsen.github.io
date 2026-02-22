@@ -349,6 +349,7 @@ h2 {
 .eq-next-directions {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
   padding: 0.5rem 0;
@@ -357,15 +358,35 @@ h2 {
 .eq-direction-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   font-size: 0.85rem;
 }
 
-.eq-direction-label {
+.eq-direction-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.eq-direction-play {
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+  min-width: 80px;
+}
+
+.eq-direction-vs {
+  color: #999;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.eq-direction-draw {
   color: #555;
-  min-width: 0;
-  flex-shrink: 1;
-  font-size: 0.8rem;
+  min-width: 80px;
 }
 
 /* W/T/L button group */

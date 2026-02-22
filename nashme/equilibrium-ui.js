@@ -192,21 +192,21 @@
     return html;
   }
 
-  function buildWtlControls(playId, drawId, currentResult, label) {
+  function buildWtlControls(playId, drawId, currentResult, playName, drawName) {
     var results = ['W', 'T', 'L'];
     var html = '<div class="eq-direction-row">';
-    html += '<span class="eq-direction-label">' + label + ':</span> ';
+    html += '<span class="eq-direction-play">' + playName + '</span> ';
     if (currentResult !== null) {
-      // Already evaluated — show read-only badge
       html += '<span class="eq-result-badge eq-result-' + currentResult + '">' + currentResult + '</span>';
     } else {
-      // Unevaluated — show W/T/L buttons
       html += '<span class="eq-wtl-group" data-play-id="' + playId + '" data-draw-id="' + drawId + '">';
       for (var i = 0; i < results.length; i++) {
         html += '<button type="button" class="eq-wtl-btn eq-wtl-' + results[i] + '" data-result="' + results[i] + '">' + results[i] + '</button>';
       }
       html += '</span>';
     }
+    html += ' <span class="eq-direction-vs">vs</span> ';
+    html += '<span class="eq-direction-draw">' + drawName + '</span>';
     html += '</div>';
     return html;
   }
@@ -293,11 +293,12 @@
 
     // Build direction controls
     var directionsHtml = '<div class="eq-next-directions">';
+    directionsHtml += '<div class="eq-direction-header">On the play</div>';
     if (isMirror) {
-      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, 'Mirror');
+      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, nameA, nameB);
     } else {
-      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, nameA + ' on play');
-      directionsHtml += buildWtlControls(nextPair.deckB, nextPair.deckA, resultBA, nameB + ' on play');
+      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, nameA, nameB);
+      directionsHtml += buildWtlControls(nextPair.deckB, nextPair.deckA, resultBA, nameB, nameA);
     }
     directionsHtml += '</div>';
 
