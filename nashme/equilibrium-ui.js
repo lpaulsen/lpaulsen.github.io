@@ -10,6 +10,9 @@
   var STORAGE_KEY = 'nashme_win_points';
   var DEFAULT_WIN_POINTS = 3;
   var MODE_KEY = 'nashme_solver_mode';
+  var MANUAL_WEIGHTS_KEY = 'nashme_manual_weights';
+
+  var manualWeights = null; // { deckId: weight } or null if not initialized
 
   // --- Win Points ---
 
@@ -27,11 +30,88 @@
 
   function getSolverMode() {
     var stored = localStorage.getItem(MODE_KEY);
-    return stored === 'mc' ? 'mc' : 'classic';
+    if (stored === 'mc') return 'mc';
+    if (stored === 'manual') return 'manual';
+    return 'classic';
   }
 
   function setSolverMode(mode) {
     localStorage.setItem(MODE_KEY, mode);
+  }
+
+  // --- Manual Weight State ---
+
+  function loadManualWeights() {
+    try {
+      var stored = localStorage.getItem(MANUAL_WEIGHTS_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return null;
+  }
+
+  function saveManualWeights(w) {
+    manualWeights = w;
+    localStorage.setItem(MANUAL_WEIGHTS_KEY, JSON.stringify(w));
+  }
+
+  function initManualWeights(decks) {
+    var data = window.NashmeData;
+    var solver = window.NashmeSolver;
+    if (!data || !solver || decks.length === 0) {
+      manualWeights = {};
+      saveManualWeights(manualWeights);
+      return;
+    }
+    var matchups = data.getAllMatchups();
+    var winPoints = getWinPoints();
+    var result = solver.computeClassic(decks, matchups, winPoints);
+    var w = {};
+    for (var i = 0; i < decks.length; i++) {
+      w[decks[i].id] = result.weights[decks[i].id] || (1.0 / decks.length);
+    }
+    manualWeights = w;
+    saveManualWeights(manualWeights);
+  }
+
+  function reconcileManualWeights(decks) {
+    if (!manualWeights) {
+      manualWeights = loadManualWeights();
+    }
+    if (!manualWeights) return null;
+
+    var currentIds = {};
+    for (var i = 0; i < decks.length; i++) {
+      currentIds[decks[i].id] = true;
+    }
+
+    // Remove stale decks
+    var needsRenorm = false;
+    for (var id in manualWeights) {
+      if (!currentIds[id]) {
+        delete manualWeights[id];
+        needsRenorm = true;
+      }
+    }
+
+    // Add new decks at 0.001 (0.1%)
+    for (var i = 0; i < decks.length; i++) {
+      if (manualWeights[decks[i].id] === undefined) {
+        manualWeights[decks[i].id] = 0.001;
+        needsRenorm = true;
+      }
+    }
+
+    // Renormalize if needed
+    if (needsRenorm) {
+      var total = 0;
+      for (var id in manualWeights) total += manualWeights[id];
+      if (total > 0) {
+        for (var id in manualWeights) manualWeights[id] /= total;
+      }
+      saveManualWeights(manualWeights);
+    }
+
+    return manualWeights;
   }
 
   // --- Config UI ---
@@ -51,6 +131,7 @@
         '<select id="eq-solver-mode" class="eq-mode-select">' +
           '<option value="classic"' + (getSolverMode() === 'classic' ? ' selected' : '') + '>Classic</option>' +
           '<option value="mc"' + (getSolverMode() === 'mc' ? ' selected' : '') + '>Monte Carlo</option>' +
+          '<option value="manual"' + (getSolverMode() === 'manual' ? ' selected' : '') + '>Manual</option>' +
         '</select>' +
       '</label>';
 
@@ -60,7 +141,20 @@
     });
 
     document.getElementById('eq-solver-mode').addEventListener('change', function () {
-      setSolverMode(this.value);
+      var newMode = this.value;
+      if (newMode === 'manual') {
+        // Snapshot current decks' weights from Classic
+        var data = window.NashmeData;
+        if (data) {
+          var allDecks = data.getDecks();
+          var decks = [];
+          for (var i = 0; i < allDecks.length; i++) {
+            if (!data.isDeckBanned(allDecks[i])) decks.push(allDecks[i]);
+          }
+          initManualWeights(decks);
+        }
+      }
+      setSolverMode(newMode);
       refresh();
     });
   }
@@ -274,7 +368,17 @@
     var winPoints = getWinPoints();
 
     var mode = getSolverMode();
-    var result = solver.compute(decks, matchups, winPoints, mode);
+    var isManual = (mode === 'manual');
+
+    // For manual mode, reconcile weights with current deck list
+    if (isManual) {
+      reconcileManualWeights(decks);
+      if (!manualWeights || Object.keys(manualWeights).length === 0) {
+        initManualWeights(decks);
+      }
+    }
+
+    var result = solver.compute(decks, matchups, winPoints, mode, isManual ? manualWeights : undefined);
     var weights = result.weights;
     var scores = result.scores; // null in classic mode
 
@@ -285,11 +389,42 @@
 
     // Render matrix with sorted order and weights
     if (window.NashmeMatrixUI) {
-      NashmeMatrixUI.render(sortedDecks, weights, scores);
+      NashmeMatrixUI.render(sortedDecks, weights, scores, isManual);
     }
 
     // Render next matchup recommendation
     renderNextMatchup(result.nextPair, decks, matchups);
+  }
+
+  function adjustWeight(deckId, delta) {
+    if (!manualWeights || manualWeights[deckId] === undefined) return;
+
+    // Apply delta to target
+    manualWeights[deckId] = Math.max(0, Math.min(1, manualWeights[deckId] + delta));
+
+    // Calculate how much we need to redistribute
+    var targetWeight = manualWeights[deckId];
+    var othersTotal = 0;
+    for (var id in manualWeights) {
+      if (id !== deckId) othersTotal += manualWeights[id];
+    }
+
+    // Rescale others to make sum = 1
+    var newOthersTotal = 1 - targetWeight;
+    if (othersTotal > 0 && newOthersTotal > 0) {
+      var scale = newOthersTotal / othersTotal;
+      for (var id in manualWeights) {
+        if (id !== deckId) manualWeights[id] *= scale;
+      }
+    } else if (newOthersTotal <= 0) {
+      // Target took all weight — zero everything else
+      for (var id in manualWeights) {
+        if (id !== deckId) manualWeights[id] = 0;
+      }
+    }
+
+    saveManualWeights(manualWeights);
+    refresh();
   }
 
   // --- Bootstrap ---
@@ -300,7 +435,7 @@
   }
 
   // --- Export ---
-  window.NashmeEquilibriumUI = { refresh: refresh };
+  window.NashmeEquilibriumUI = { refresh: refresh, adjustWeight: adjustWeight };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

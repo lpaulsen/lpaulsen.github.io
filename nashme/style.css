@@ -706,3 +706,19 @@ h2 {
 .import-3cb-results .error {
   color: #c0392b;
 }
+
+/* Manual mode weight arrows */
+.weight-arrow {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.6rem;
+  color: #999;
+  padding: 0 2px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.weight-arrow:hover {
+  color: #4a90d9;
+}

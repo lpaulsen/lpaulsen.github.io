@@ -367,9 +367,46 @@
   }
 
   /**
-   * Dispatcher — routes to classic or Monte Carlo solver based on mode.
+   * Manual solver — uses user-provided weights directly.
    */
-  function compute(decks, matchups, winPoints, mode) {
+  function computeManual(decks, matchups, winPoints, manualWeights) {
+    var n = decks.length;
+    if (n === 0) return { weights: {}, nextPair: null, scores: {} };
+    if (n === 1) {
+      var w = {}; w[decks[0].id] = 1.0;
+      var s = {}; s[decks[0].id] = { p10: 2, p50: 2, p90: 2 };
+      return { weights: w, nextPair: null, scores: s };
+    }
+
+    // Use the provided manual weights directly
+    var weights = {};
+    var weightArr = [];
+    for (var i = 0; i < n; i++) {
+      var mw = manualWeights[decks[i].id];
+      weights[decks[i].id] = (mw !== undefined) ? mw : 0;
+      weightArr.push(weights[decks[i].id]);
+    }
+
+    // Build payoff matrix and compute deterministic scores
+    var M = buildPayoffMatrix(decks, matchups, winPoints);
+    var scores = {};
+    for (var i = 0; i < n; i++) {
+      var score = 0;
+      for (var j = 0; j < n; j++) {
+        score += weightArr[j] * M[i][j];
+      }
+      scores[decks[i].id] = { p10: score, p50: score, p90: score };
+    }
+
+    var nextPair = findNextPair(decks, matchups, weights);
+    return { weights: weights, nextPair: nextPair, scores: scores };
+  }
+
+  /**
+   * Dispatcher — routes to classic, Monte Carlo, or manual solver based on mode.
+   */
+  function compute(decks, matchups, winPoints, mode, manualWeights) {
+    if (mode === 'manual') return computeManual(decks, matchups, winPoints, manualWeights || {});
     if (mode === 'mc') return computeMC(decks, matchups, winPoints);
     return computeClassic(decks, matchups, winPoints);
   }
@@ -379,6 +416,7 @@
     compute: compute,
     computeClassic: computeClassic,
     computeMC: computeMC,
+    computeManual: computeManual,
   };
 })();
 

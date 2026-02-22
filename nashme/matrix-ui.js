@@ -96,15 +96,22 @@
 
   // --- Helpers ---
 
-  function deckLabel(deck, weights, scores) {
+  function deckLabel(deck, weights, scores, isManual) {
     if (!deck || !deck.cards) return deck ? deck.id : '?';
     var lines = deck.cards.slice();
     if (weights && weights[deck.id] !== undefined) {
-      var weightLine = (weights[deck.id] * 100).toFixed(1) + '%';
-      if (scores && scores[deck.id]) {
-        weightLine += ' · <span class="deck-score-range">' + scores[deck.id].p50.toFixed(1) + '</span>';
+      var weightStr = (weights[deck.id] * 100).toFixed(1) + '%';
+      if (isManual) {
+        var escaped = deck.id.replace(/"/g, '&quot;');
+        weightStr = '<button class="weight-arrow weight-up" data-deck="' + escaped + '">&#9650;</button> ' +
+          weightStr +
+          ' <button class="weight-arrow weight-down" data-deck="' + escaped + '">&#9660;</button>';
       }
-      lines.push('<strong>' + weightLine + '</strong>');
+      var scorePart = '';
+      if (scores && scores[deck.id]) {
+        scorePart = ' · <span class="deck-score-range">' + scores[deck.id].p50.toFixed(1) + '</span>';
+      }
+      lines.push('<strong>' + weightStr + '</strong>' + scorePart);
     }
     return lines.join('<br>');
   }
@@ -144,7 +151,9 @@
     return el;
   }
 
-  function render(sortedDecks, weights, scores) {
+  var arrowListenersAttached = false;
+
+  function render(sortedDecks, weights, scores, isManual) {
     injectStyles();
     var container = getContainer();
     container.innerHTML = '';
@@ -218,7 +227,7 @@
     var headerRow = document.createElement('tr');
     for (var c = 0; c < decks.length; c++) {
       var th = document.createElement('th');
-      th.innerHTML = deckLabel(decks[c], weights, scores);
+      th.innerHTML = deckLabel(decks[c], weights, scores, isManual);
       th.title = deckLabelPlain(decks[c], weights, scores);
       th.setAttribute('data-cards', decks[c].cards.map(function(cd) { return cd.replace(/"/g, '&quot;'); }).join('||'));
       headerRow.appendChild(th);
@@ -233,7 +242,7 @@
       var tr = document.createElement('tr');
       // Row header
       var rowTh = document.createElement('th');
-      rowTh.innerHTML = deckLabel(decks[r], weights, scores);
+      rowTh.innerHTML = deckLabel(decks[r], weights, scores, isManual);
       rowTh.title = deckLabelPlain(decks[r], weights, scores);
       rowTh.setAttribute('data-cards', decks[r].cards.map(function(cd) { return cd.replace(/"/g, '&quot;'); }).join('||'));
       if (r === 0) {
@@ -267,6 +276,21 @@
       }, true);
 
       tooltipListenersAttached = true;
+    }
+
+    // Arrow click delegation (attach only once)
+    if (!arrowListenersAttached) {
+      container.addEventListener('click', function (e) {
+        var arrow = e.target.closest('.weight-arrow');
+        if (!arrow) return;
+        e.stopPropagation();
+        var deckId = arrow.getAttribute('data-deck');
+        var delta = arrow.classList.contains('weight-up') ? 0.001 : -0.001;
+        if (window.NashmeEquilibriumUI && NashmeEquilibriumUI.adjustWeight) {
+          NashmeEquilibriumUI.adjustWeight(deckId, delta);
+        }
+      });
+      arrowListenersAttached = true;
     }
   }
 
