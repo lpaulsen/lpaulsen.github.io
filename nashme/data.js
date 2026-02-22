@@ -9,10 +9,12 @@
   var decks = [];
   var matchups = {};
   var banlist = [];
+  var batchDepth = 0;
 
   // --- Persistence ---
 
   function save() {
+    if (batchDepth > 0) return; // skip during batch
     var payload = {
       nextId: nextId,
       decks: decks,
@@ -20,6 +22,18 @@
       banlist: banlist,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  function beginBatch() {
+    batchDepth++;
+  }
+
+  function endBatch() {
+    batchDepth--;
+    if (batchDepth <= 0) {
+      batchDepth = 0;
+      save();
+    }
   }
 
   function load() {
@@ -180,72 +194,75 @@
       }
     }
 
-    // Build a lookup of existing decks by normalized card key
-    function cardKey(cards) {
-      var sorted = normalizeCards(cards);
-      return sorted.join('|||').toLowerCase();
-    }
-
-    var existingByCards = {};
-    for (var i = 0; i < decks.length; i++) {
-      existingByCards[cardKey(decks[i].cards)] = decks[i].id;
-    }
-
-    // Track max numeric ID from imported data to avoid collisions
-    var idMap = {};
-    var maxIdNum = nextId - 1;
-
-    for (var i = 0; i < obj.decks.length; i++) {
-      var imported = obj.decks[i];
-      var key = cardKey(imported.cards);
-
-      // Extract numeric portion from imported ID
-      var parts = imported.id.match(/^deck-(\d+)$/);
-      if (parts) {
-        var num = parseInt(parts[1], 10);
-        if (num > maxIdNum) maxIdNum = num;
+    beginBatch();
+    try {
+      // Build a lookup of existing decks by normalized card key
+      function cardKey(cards) {
+        var sorted = normalizeCards(cards);
+        return sorted.join('|||').toLowerCase();
       }
 
-      if (existingByCards[key]) {
-        // Deck already exists locally — map imported ID to existing ID
-        idMap[imported.id] = existingByCards[key];
-      } else {
-        // New deck — create with fresh ID
-        var newDeck = {
-          id: generateId(),
-          cards: normalizeCards(imported.cards),
-        };
-        decks.push(newDeck);
-        existingByCards[key] = newDeck.id;
-        idMap[imported.id] = newDeck.id;
+      var existingByCards = {};
+      for (var i = 0; i < decks.length; i++) {
+        existingByCards[cardKey(decks[i].cards)] = decks[i].id;
       }
-    }
 
-    // Merge matchups — remap IDs
-    for (var key in obj.matchups) {
-      if (!obj.matchups.hasOwnProperty(key)) continue;
-      var parts = key.split(':');
-      if (parts.length !== 2) continue;
-      var playId = idMap[parts[0]];
-      var drawId = idMap[parts[1]];
-      if (!playId || !drawId) continue; // skip unmappable
-      var newKey = playId + ':' + drawId;
-      matchups[newKey] = obj.matchups[key];
-    }
+      // Track max numeric ID from imported data to avoid collisions
+      var idMap = {};
+      var maxIdNum = nextId - 1;
 
-    // Merge banlist
-    if (Array.isArray(obj.banlist)) {
-      for (var i = 0; i < obj.banlist.length; i++) {
-        addBan(obj.banlist[i]);
+      for (var i = 0; i < obj.decks.length; i++) {
+        var imported = obj.decks[i];
+        var key = cardKey(imported.cards);
+
+        // Extract numeric portion from imported ID
+        var parts = imported.id.match(/^deck-(\d+)$/);
+        if (parts) {
+          var num = parseInt(parts[1], 10);
+          if (num > maxIdNum) maxIdNum = num;
+        }
+
+        if (existingByCards[key]) {
+          // Deck already exists locally — map imported ID to existing ID
+          idMap[imported.id] = existingByCards[key];
+        } else {
+          // New deck — create with fresh ID
+          var newDeck = {
+            id: generateId(),
+            cards: normalizeCards(imported.cards),
+          };
+          decks.push(newDeck);
+          existingByCards[key] = newDeck.id;
+          idMap[imported.id] = newDeck.id;
+        }
       }
-    }
 
-    // Ensure nextId is high enough to avoid collisions
-    if (maxIdNum >= nextId) {
-      nextId = maxIdNum + 1;
-    }
+      // Merge matchups — remap IDs
+      for (var key in obj.matchups) {
+        if (!obj.matchups.hasOwnProperty(key)) continue;
+        var parts = key.split(':');
+        if (parts.length !== 2) continue;
+        var playId = idMap[parts[0]];
+        var drawId = idMap[parts[1]];
+        if (!playId || !drawId) continue; // skip unmappable
+        var newKey = playId + ':' + drawId;
+        matchups[newKey] = obj.matchups[key];
+      }
 
-    save();
+      // Merge banlist
+      if (Array.isArray(obj.banlist)) {
+        for (var i = 0; i < obj.banlist.length; i++) {
+          addBan(obj.banlist[i]);
+        }
+      }
+
+      // Ensure nextId is high enough to avoid collisions
+      if (maxIdNum >= nextId) {
+        nextId = maxIdNum + 1;
+      }
+    } finally {
+      endBatch(); // single save
+    }
   }
 
   function wipeAll() {
@@ -326,6 +343,8 @@
     removeBan: removeBan,
     isBanned: isBanned,
     isDeckBanned: isDeckBanned,
+    beginBatch: beginBatch,
+    endBatch: endBatch,
   };
 })();
 

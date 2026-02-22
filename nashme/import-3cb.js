@@ -155,70 +155,73 @@
     var skipped = 0;
     var conflicts = 0;
 
-    for (var i = 1; i < rows.length; i++) {
-      var row = rows[i];
+    data.beginBatch();
+    try {
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i];
 
-      // Skip rows that don't have enough columns
-      if (row.length <= Math.max(cols.decklist, cols.opponentDecklist, cols.turnOrder, cols.result)) {
-        skipped++;
-        continue;
+        // Skip rows that don't have enough columns
+        if (row.length <= Math.max(cols.decklist, cols.opponentDecklist, cols.turnOrder, cols.result)) {
+          skipped++;
+          continue;
+        }
+
+        var decklistStr = row[cols.decklist].trim();
+        var oppDecklistStr = row[cols.opponentDecklist].trim();
+        var turnOrder = row[cols.turnOrder].trim().toLowerCase();
+        var userResult = mapResult(row[cols.result]);
+
+        if (!decklistStr || !oppDecklistStr || !userResult) {
+          skipped++;
+          continue;
+        }
+
+        var userCards = parseDeckCards(decklistStr);
+        var oppCards = parseDeckCards(oppDecklistStr);
+        if (!userCards || !oppCards) {
+          skipped++;
+          continue;
+        }
+
+        // Resolve decks
+        var userDeck = findOrCreateDeck(userCards, deckMap);
+        var oppDeck = findOrCreateDeck(oppCards, deckMap);
+        if (userDeck.created) decksCreated++;
+        if (oppDeck.created) decksCreated++;
+
+        // Determine play/draw decks and result from play-deck perspective
+        var playDeckId, drawDeckId, playResult;
+
+        if (turnOrder === '1st' || turnOrder === 'first') {
+          // User is on the play
+          playDeckId = userDeck.id;
+          drawDeckId = oppDeck.id;
+          playResult = userResult; // W/L/T as-is
+        } else if (turnOrder === '2nd' || turnOrder === 'second') {
+          // User is on the draw; play deck is opponent
+          playDeckId = oppDeck.id;
+          drawDeckId = userDeck.id;
+          // Flip W/L from play-deck perspective
+          if (userResult === 'W') playResult = 'L';
+          else if (userResult === 'L') playResult = 'W';
+          else playResult = 'T';
+        } else {
+          skipped++;
+          continue;
+        }
+
+        // Check for conflict (existing different result)
+        var existing = data.getMatchup(playDeckId, drawDeckId);
+        if (existing !== null && existing !== playResult) {
+          conflicts++;
+        }
+
+        data.setMatchup(playDeckId, drawDeckId, playResult);
+        matchupsSet++;
       }
-
-      var decklistStr = row[cols.decklist].trim();
-      var oppDecklistStr = row[cols.opponentDecklist].trim();
-      var turnOrder = row[cols.turnOrder].trim().toLowerCase();
-      var userResult = mapResult(row[cols.result]);
-
-      if (!decklistStr || !oppDecklistStr || !userResult) {
-        skipped++;
-        continue;
-      }
-
-      var userCards = parseDeckCards(decklistStr);
-      var oppCards = parseDeckCards(oppDecklistStr);
-      if (!userCards || !oppCards) {
-        skipped++;
-        continue;
-      }
-
-      // Resolve decks
-      var userDeck = findOrCreateDeck(userCards, deckMap);
-      var oppDeck = findOrCreateDeck(oppCards, deckMap);
-      if (userDeck.created) decksCreated++;
-      if (oppDeck.created) decksCreated++;
-
-      // Determine play/draw decks and result from play-deck perspective
-      var playDeckId, drawDeckId, playResult;
-
-      if (turnOrder === '1st' || turnOrder === 'first') {
-        // User is on the play
-        playDeckId = userDeck.id;
-        drawDeckId = oppDeck.id;
-        playResult = userResult; // W/L/T as-is
-      } else if (turnOrder === '2nd' || turnOrder === 'second') {
-        // User is on the draw; play deck is opponent
-        playDeckId = oppDeck.id;
-        drawDeckId = userDeck.id;
-        // Flip W/L from play-deck perspective
-        if (userResult === 'W') playResult = 'L';
-        else if (userResult === 'L') playResult = 'W';
-        else playResult = 'T';
-      } else {
-        skipped++;
-        continue;
-      }
-
-      // Check for conflict (existing different result)
-      var existing = data.getMatchup(playDeckId, drawDeckId);
-      if (existing !== null && existing !== playResult) {
-        conflicts++;
-      }
-
-      data.setMatchup(playDeckId, drawDeckId, playResult);
-      matchupsSet++;
+    } finally {
+      data.endBatch();
     }
-
-    data.save();
 
     if (matchupsSet === 0 && decksCreated === 0) {
       return { error: 'No valid match data found. Check the format.' };
