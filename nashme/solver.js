@@ -161,7 +161,8 @@
       avg[i] = 0;
     }
 
-    for (var iter = 0; iter < ITERATIONS; iter++) {
+    var iters = n <= 50 ? ITERATIONS : Math.max(500, Math.floor(ITERATIONS * 2500 / (n * n)));
+    for (var iter = 0; iter < iters; iter++) {
       // Compute expected payoff for each deck
       var E = [];
       for (i = 0; i < n; i++) {
@@ -198,7 +199,7 @@
     }
 
     // Compute time-averaged distribution
-    for (i = 0; i < n; i++) avg[i] = avg[i] / ITERATIONS;
+    for (i = 0; i < n; i++) avg[i] = avg[i] / iters;
 
     return avg;
   }
@@ -269,7 +270,7 @@
 
     // Build payoff matrix and run MWU
     var M = buildPayoffMatrix(decks, matchups, winPoints);
-    var simFactor = computeSimilarityFactor(decks);
+    var simFactor = n <= 100 ? computeSimilarityFactor(decks) : 1.0;
     var avgWeights = mwu(M, n, simFactor);
 
     // Convert to {deckId: weight} map
@@ -308,7 +309,7 @@
 
     // Step 1: Run classic MWU to get base weights
     var M = buildPayoffMatrix(decks, matchups, winPoints);
-    var simFactor = computeSimilarityFactor(decks);
+    var simFactor = n <= 100 ? computeSimilarityFactor(decks) : 1.0;
     var baseWeights = mwu(M, n, simFactor);
 
     // Step 2: Monte Carlo simulation
