@@ -552,16 +552,21 @@ h2 {
 
 .banlist-form {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   margin-top: 1rem;
 }
 
 .banlist-input {
-  flex: 1;
+  width: 100%;
   padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 2.5rem;
+  box-sizing: border-box;
 }
 
 .banlist-input:focus {
@@ -571,6 +576,7 @@ h2 {
 }
 
 .banlist-add-btn {
+  align-self: flex-end;
   padding: 0.5rem 1.25rem;
   border: none;
   border-radius: 4px;

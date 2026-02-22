@@ -86,29 +86,57 @@
     var inputEl = containerEl.querySelector('.banlist-input');
     var btnEl = containerEl.querySelector('.banlist-add-btn');
     var errorEl = containerEl.querySelector('.banlist-error');
-    var name = inputEl.value.trim();
-    if (!name) return;
+
+    var lines = inputEl.value.split('\n');
+    var names = [];
+    for (var i = 0; i < lines.length; i++) {
+      var trimmed = lines[i].trim();
+      if (trimmed) names.push(trimmed);
+    }
+    if (names.length === 0) return;
 
     errorEl.textContent = '';
     btnEl.disabled = true;
     btnEl.textContent = 'Validating\u2026';
 
-    NashmeScryfall.validateCard(name).then(function (result) {
-      if (!result.valid) {
-        errorEl.textContent = '"' + name + '" is not a valid card name.';
+    var invalid = [];
+    var added = 0;
+    var idx = 0;
+
+    function processNext() {
+      if (idx >= names.length) {
+        // All done
+        if (added > 0) {
+          render();
+          if (window.NashmeEquilibriumUI) NashmeEquilibriumUI.refresh();
+          if (window.NashmeDecksUI) NashmeDecksUI.render();
+        }
+        inputEl.value = '';
         btnEl.disabled = false;
-        btnEl.textContent = 'Ban Card';
+        btnEl.textContent = 'Ban Cards';
+        if (invalid.length > 0) {
+          errorEl.textContent = 'Not found: ' + invalid.join(', ');
+          inputEl.value = invalid.join('\n');
+        }
         return;
       }
-      var corrected = result.correctedName || name;
-      data.addBan(corrected);
-      render();
-      if (window.NashmeEquilibriumUI) NashmeEquilibriumUI.refresh();
-      if (window.NashmeDecksUI) NashmeDecksUI.render();
-      inputEl.value = '';
-      btnEl.disabled = false;
-      btnEl.textContent = 'Ban Card';
-    });
+
+      var name = names[idx];
+      idx++;
+
+      NashmeScryfall.validateCard(name).then(function (result) {
+        if (!result.valid) {
+          invalid.push(name);
+        } else {
+          var corrected = result.correctedName || name;
+          data.addBan(corrected);
+          added++;
+        }
+        processNext();
+      });
+    }
+
+    processNext();
   }
 
   // --- Bootstrap ---
@@ -128,8 +156,8 @@
         '</div>' +
         '<div class="banlist-body' + (collapsed ? ' collapsed' : '') + '">' +
           '<form class="banlist-form">' +
-            '<input type="text" class="banlist-input" placeholder="Card name" autocomplete="off">' +
-            '<button type="submit" class="banlist-add-btn">Ban Card</button>' +
+            '<textarea class="banlist-input" placeholder="One card name per line" rows="3"></textarea>' +
+            '<button type="submit" class="banlist-add-btn">Ban Cards</button>' +
           '</form>' +
           '<p class="banlist-error"></p>' +
           '<div class="banlist-items"></div>' +
