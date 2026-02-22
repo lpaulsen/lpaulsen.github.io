@@ -9,6 +9,56 @@
   var ALPHA = 0.05;     // rubber-band blend toward uniform
   var FLOOR = 1e-10;    // minimum weight to avoid numerical issues
 
+  // Monte Carlo constants
+  var SIM_COUNT = 100;       // Monte Carlo simulations
+  var KAPPA = 30;            // Dirichlet concentration
+  var GAMMA = 0.05;          // variance bonus strength
+
+  // --- Dirichlet sampling infrastructure ---
+
+  /** Box-Muller normal sampler */
+  function randNormal() {
+    var u1 = Math.random();
+    var u2 = Math.random();
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+
+  /** Marsaglia-Tsang Gamma(α, 1) sampler */
+  function randGamma(alpha) {
+    if (alpha < 1) {
+      // Ahrens-Dieter boost
+      return randGamma(alpha + 1) * Math.pow(Math.random(), 1 / alpha);
+    }
+    var d = alpha - 1/3;
+    var c = 1 / Math.sqrt(9 * d);
+    while (true) {
+      var x, v;
+      do {
+        x = randNormal();
+        v = 1 + c * x;
+      } while (v <= 0);
+      v = v * v * v;
+      var u = Math.random();
+      if (u < 1 - 0.0331 * (x * x) * (x * x)) return d * v;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+
+  /** Dirichlet sampler */
+  function randDirichlet(alphas) {
+    var samples = [];
+    var sum = 0;
+    for (var i = 0; i < alphas.length; i++) {
+      var g = randGamma(alphas[i]);
+      samples.push(g);
+      sum += g;
+    }
+    for (var i = 0; i < samples.length; i++) {
+      samples[i] = samples[i] / sum;
+    }
+    return samples;
+  }
+
   /**
    * Score a single game result from the perspective of the player on play.
    * W = winPoints, T = 1, L = 0, null = 1 (unknown treated as draw).
@@ -174,17 +224,17 @@
   }
 
   /**
-   * Main entry point.
+   * Classic solver — original MWU-only computation.
    */
-  function compute(decks, matchups, winPoints) {
+  function computeClassic(decks, matchups, winPoints) {
     var n = decks.length;
 
     // Edge cases: 0 or 1 deck
-    if (n === 0) return { weights: {}, nextPair: null };
+    if (n === 0) return { weights: {}, nextPair: null, scores: null };
     if (n === 1) {
       var w = {};
       w[decks[0].id] = 1.0;
-      return { weights: w, nextPair: null };
+      return { weights: w, nextPair: null, scores: null };
     }
 
     // Build payoff matrix and run MWU
@@ -200,12 +250,125 @@
     // Find highest-priority unevaluated pair
     var nextPair = findNextPair(decks, matchups, weights);
 
-    return { weights: weights, nextPair: nextPair };
+    return { weights: weights, nextPair: nextPair, scores: null };
+  }
+
+  /**
+   * Monte Carlo solver — MWU + Dirichlet sampling + variance-adjusted weights.
+   */
+  function computeMC(decks, matchups, winPoints) {
+    var n = decks.length;
+    if (n === 0) return { weights: {}, nextPair: null, scores: {} };
+    if (n === 1) {
+      var w = {}; w[decks[0].id] = 1.0;
+      var s = {}; s[decks[0].id] = { p10: 2, p50: 2, p90: 2 };
+      return { weights: w, nextPair: null, scores: s };
+    }
+
+    // Step 1: Run classic MWU to get base weights
+    var M = buildPayoffMatrix(decks, matchups, winPoints);
+    var baseWeights = mwu(M, n);
+
+    // Step 2: Monte Carlo simulation
+    // Build Dirichlet alpha parameters
+    var alphas = [];
+    for (var i = 0; i < n; i++) {
+      alphas.push(KAPPA * baseWeights[i]);
+    }
+
+    // Collect scores: allScores[i] = array of 100 scores for deck i
+    var allScores = [];
+    for (var i = 0; i < n; i++) allScores.push([]);
+
+    for (var sim = 0; sim < SIM_COUNT; sim++) {
+      var sampledW = randDirichlet(alphas);
+      for (var i = 0; i < n; i++) {
+        var score = 0;
+        for (var j = 0; j < n; j++) {
+          score += sampledW[j] * M[i][j];
+        }
+        allScores[i].push(score);
+      }
+    }
+
+    // Step 3: Compute percentiles
+    var scores = {};
+    var variances = [];
+    for (var i = 0; i < n; i++) {
+      allScores[i].sort(function(a, b) { return a - b; });
+      var arr = allScores[i];
+
+      // p10 = avg of bottom 10
+      var p10sum = 0;
+      for (var k = 0; k < 10; k++) p10sum += arr[k];
+      var p10 = p10sum / 10;
+
+      // p50 = avg of middle 10 (indices 45-54)
+      var p50sum = 0;
+      for (var k = 45; k < 55; k++) p50sum += arr[k];
+      var p50 = p50sum / 10;
+
+      // p90 = avg of top 10
+      var p90sum = 0;
+      for (var k = 90; k < 100; k++) p90sum += arr[k];
+      var p90 = p90sum / 10;
+
+      scores[decks[i].id] = { p10: p10, p50: p50, p90: p90 };
+
+      // Compute variance (stddev) for variance bonus
+      var mean = 0;
+      for (var k = 0; k < SIM_COUNT; k++) mean += arr[k];
+      mean /= SIM_COUNT;
+      var variance = 0;
+      for (var k = 0; k < SIM_COUNT; k++) {
+        var diff = arr[k] - mean;
+        variance += diff * diff;
+      }
+      variances.push(Math.sqrt(variance / SIM_COUNT));
+    }
+
+    // Step 4: Variance-adjusted weights
+    var maxVar = 0;
+    for (var i = 0; i < n; i++) {
+      if (variances[i] > maxVar) maxVar = variances[i];
+    }
+
+    var adjusted = [];
+    for (var i = 0; i < n; i++) {
+      var bonus = maxVar > 0 ? GAMMA * (variances[i] / maxVar) * baseWeights[i] : 0;
+      adjusted.push(baseWeights[i] + bonus);
+    }
+
+    // Renormalize
+    var total = 0;
+    for (var i = 0; i < n; i++) total += adjusted[i];
+    for (var i = 0; i < n; i++) adjusted[i] = adjusted[i] / total;
+
+    // Build weights map
+    var weights = {};
+    for (var i = 0; i < n; i++) {
+      weights[decks[i].id] = adjusted[i];
+    }
+
+    // Find next pair (using adjusted weights)
+    var nextPair = findNextPair(decks, matchups, weights);
+
+    return { weights: weights, nextPair: nextPair, scores: scores };
+  }
+
+  /**
+   * Dispatcher — routes to classic or Monte Carlo solver based on mode.
+   */
+  function compute(decks, matchups, winPoints, mode) {
+    if (mode === 'mc') return computeMC(decks, matchups, winPoints);
+    return computeClassic(decks, matchups, winPoints);
   }
 
   // Export public API
   window.NashmeSolver = {
     compute: compute,
+    computeClassic: computeClassic,
+    computeMC: computeMC,
   };
 })();
 

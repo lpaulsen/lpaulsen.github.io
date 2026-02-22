@@ -9,6 +9,7 @@
 
   var STORAGE_KEY = 'nashme_win_points';
   var DEFAULT_WIN_POINTS = 3;
+  var MODE_KEY = 'nashme_solver_mode';
 
   // --- Win Points ---
 
@@ -20,6 +21,17 @@
 
   function setWinPoints(val) {
     localStorage.setItem(STORAGE_KEY, String(val));
+  }
+
+  // --- Solver Mode ---
+
+  function getSolverMode() {
+    var stored = localStorage.getItem(MODE_KEY);
+    return stored === 'mc' ? 'mc' : 'classic';
+  }
+
+  function setSolverMode(mode) {
+    localStorage.setItem(MODE_KEY, mode);
   }
 
   // --- Config UI ---
@@ -34,10 +46,21 @@
           '<option value="2"' + (getWinPoints() === 2 ? ' selected' : '') + '>2 pts</option>' +
           '<option value="3"' + (getWinPoints() === 3 ? ' selected' : '') + '>3 pts</option>' +
         '</select>' +
+      '</label>' +
+      '<label class="eq-config-label">Solver: ' +
+        '<select id="eq-solver-mode" class="eq-mode-select">' +
+          '<option value="classic"' + (getSolverMode() === 'classic' ? ' selected' : '') + '>Classic</option>' +
+          '<option value="mc"' + (getSolverMode() === 'mc' ? ' selected' : '') + '>Monte Carlo</option>' +
+        '</select>' +
       '</label>';
 
     document.getElementById('eq-win-points').addEventListener('change', function () {
       setWinPoints(parseInt(this.value, 10));
+      refresh();
+    });
+
+    document.getElementById('eq-solver-mode').addEventListener('change', function () {
+      setSolverMode(this.value);
       refresh();
     });
   }
@@ -250,8 +273,10 @@
     var matchups = data.getAllMatchups();
     var winPoints = getWinPoints();
 
-    var result = solver.compute(decks, matchups, winPoints);
+    var mode = getSolverMode();
+    var result = solver.compute(decks, matchups, winPoints, mode);
     var weights = result.weights;
+    var scores = result.scores; // null in classic mode
 
     // Sort decks by weight descending
     var sortedDecks = decks.slice().sort(function (a, b) {
@@ -260,7 +285,7 @@
 
     // Render matrix with sorted order and weights
     if (window.NashmeMatrixUI) {
-      NashmeMatrixUI.render(sortedDecks, weights);
+      NashmeMatrixUI.render(sortedDecks, weights, scores);
     }
 
     // Render next matchup recommendation

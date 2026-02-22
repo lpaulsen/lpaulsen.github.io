@@ -222,6 +222,18 @@ h2 {
   box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
 }
 
+.eq-mode-select {
+  font-size: 0.95rem;
+  padding: 0.15rem 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.deck-score-range {
+  font-weight: 400;
+  color: #888;
+}
+
 /* Next Matchup Recommendation */
 #next-matchup {
   margin-bottom: 1rem;

@@ -96,20 +96,28 @@
 
   // --- Helpers ---
 
-  function deckLabel(deck, weights) {
+  function deckLabel(deck, weights, scores) {
     if (!deck || !deck.cards) return deck ? deck.id : '?';
     var lines = deck.cards.slice();
     if (weights && weights[deck.id] !== undefined) {
-      lines.push('<strong>' + (weights[deck.id] * 100).toFixed(1) + '%</strong>');
+      var weightLine = (weights[deck.id] * 100).toFixed(1) + '%';
+      if (scores && scores[deck.id]) {
+        weightLine += ' · <span class="deck-score-range">' + scores[deck.id].p50.toFixed(1) + '</span>';
+      }
+      lines.push('<strong>' + weightLine + '</strong>');
     }
     return lines.join('<br>');
   }
 
-  function deckLabelPlain(deck, weights) {
+  function deckLabelPlain(deck, weights, scores) {
     if (!deck || !deck.cards) return deck ? deck.id : '?';
     var label = deck.cards.join(' / ');
     if (weights && weights[deck.id] !== undefined) {
-      label += ' (' + (weights[deck.id] * 100).toFixed(1) + '%)';
+      var line = (weights[deck.id] * 100).toFixed(1) + '%';
+      if (scores && scores[deck.id]) {
+        line += ' · ' + scores[deck.id].p50.toFixed(1);
+      }
+      label += ' (' + line + ')';
     }
     return label;
   }
@@ -136,7 +144,7 @@
     return el;
   }
 
-  function render(sortedDecks, weights) {
+  function render(sortedDecks, weights, scores) {
     injectStyles();
     var container = getContainer();
     container.innerHTML = '';
@@ -210,8 +218,8 @@
     var headerRow = document.createElement('tr');
     for (var c = 0; c < decks.length; c++) {
       var th = document.createElement('th');
-      th.innerHTML = deckLabel(decks[c], weights);
-      th.title = deckLabelPlain(decks[c], weights);
+      th.innerHTML = deckLabel(decks[c], weights, scores);
+      th.title = deckLabelPlain(decks[c], weights, scores);
       th.setAttribute('data-cards', decks[c].cards.map(function(cd) { return cd.replace(/"/g, '&quot;'); }).join('||'));
       headerRow.appendChild(th);
     }
@@ -225,8 +233,8 @@
       var tr = document.createElement('tr');
       // Row header
       var rowTh = document.createElement('th');
-      rowTh.innerHTML = deckLabel(decks[r], weights);
-      rowTh.title = deckLabelPlain(decks[r], weights);
+      rowTh.innerHTML = deckLabel(decks[r], weights, scores);
+      rowTh.title = deckLabelPlain(decks[r], weights, scores);
       rowTh.setAttribute('data-cards', decks[r].cards.map(function(cd) { return cd.replace(/"/g, '&quot;'); }).join('||'));
       if (r === 0) {
         // Add "On the Play" label to first row header area — already in corner cell
