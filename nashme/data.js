@@ -8,6 +8,7 @@
   var nextId = 1;
   var decks = [];
   var matchups = {};
+  var banlist = [];
 
   // --- Persistence ---
 
@@ -16,6 +17,7 @@
       nextId: nextId,
       decks: decks,
       matchups: matchups,
+      banlist: banlist,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }
@@ -31,11 +33,13 @@
         payload.matchups && typeof payload.matchups === 'object'
           ? payload.matchups
           : {};
+      banlist = Array.isArray(payload.banlist) ? payload.banlist : [];
     } catch (e) {
       // Corrupted data — start fresh
       nextId = 1;
       decks = [];
       matchups = {};
+      banlist = [];
     }
   }
 
@@ -153,6 +157,7 @@
     return {
       decks: JSON.parse(JSON.stringify(decks)),
       matchups: getAllMatchups(),
+      banlist: banlist.slice(),
     };
   }
 
@@ -187,6 +192,7 @@
         matchups[key] = obj.matchups[key];
       }
     }
+    banlist = Array.isArray(obj.banlist) ? obj.banlist.slice() : [];
     nextId = maxIdNum + 1;
     save();
   }
@@ -194,8 +200,58 @@
   function wipeAll() {
     decks = [];
     matchups = {};
+    banlist = [];
     nextId = 1;
     save();
+  }
+
+  // --- Banlist API ---
+
+  function getBanlist() {
+    return banlist.slice(); // return a copy
+  }
+
+  function addBan(cardName) {
+    var name = cardName.trim();
+    if (!name) return;
+    // Check if already banned (case-insensitive)
+    var lower = name.toLowerCase();
+    for (var i = 0; i < banlist.length; i++) {
+      if (banlist[i].toLowerCase() === lower) return; // already banned
+    }
+    banlist.push(name);
+    // Sort case-insensitively
+    banlist.sort(function (a, b) {
+      return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    });
+    save();
+  }
+
+  function removeBan(cardName) {
+    var lower = cardName.trim().toLowerCase();
+    for (var i = 0; i < banlist.length; i++) {
+      if (banlist[i].toLowerCase() === lower) {
+        banlist.splice(i, 1);
+        save();
+        return;
+      }
+    }
+  }
+
+  function isBanned(cardName) {
+    var lower = cardName.trim().toLowerCase();
+    for (var i = 0; i < banlist.length; i++) {
+      if (banlist[i].toLowerCase() === lower) return true;
+    }
+    return false;
+  }
+
+  function isDeckBanned(deck) {
+    if (!deck || !deck.cards) return false;
+    for (var i = 0; i < deck.cards.length; i++) {
+      if (isBanned(deck.cards[i])) return true;
+    }
+    return false;
   }
 
   // --- Auto-load on initialization ---
@@ -214,6 +270,11 @@
     wipeAll: wipeAll,
     save: save,
     load: load,
+    getBanlist: getBanlist,
+    addBan: addBan,
+    removeBan: removeBan,
+    isBanned: isBanned,
+    isDeckBanned: isDeckBanned,
   };
 })();
 

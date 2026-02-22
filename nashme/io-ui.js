@@ -16,6 +16,7 @@
       if (window.NashmeDecksUI) NashmeDecksUI.render();
       if (window.NashmeMatrixUI) NashmeMatrixUI.render();
     }
+    if (window.NashmeBanlistUI) NashmeBanlistUI.render();
   }
 
   // --- Export ---
