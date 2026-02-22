@@ -161,10 +161,10 @@
       avg[i] = 0;
     }
 
-    var iters = n <= 50 ? ITERATIONS : Math.max(500, Math.floor(ITERATIONS * 2500 / (n * n)));
+    var iters = n <= 50 ? ITERATIONS : Math.max(100, Math.floor(5000000 / (n * n)));
+    var E = new Array(n);
     for (var iter = 0; iter < iters; iter++) {
       // Compute expected payoff for each deck
-      var E = [];
       for (i = 0; i < n; i++) {
         var sum = 0;
         for (j = 0; j < n; j++) {
