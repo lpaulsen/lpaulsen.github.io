@@ -641,3 +641,56 @@ h2 {
   height: auto;
   border-radius: 6px;
 }
+
+
+/* 3CB Import */
+.import-3cb-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.import-3cb-textarea {
+  width: 100%;
+  min-height: 150px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.import-3cb-textarea:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+.import-3cb-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.import-3cb-results {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.import-3cb-results .success {
+  color: #27ae60;
+}
+
+.import-3cb-results .warning {
+  color: #e67e22;
+}
+
+.import-3cb-results .error {
+  color: #c0392b;
+}

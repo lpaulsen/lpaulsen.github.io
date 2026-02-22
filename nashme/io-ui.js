@@ -81,11 +81,15 @@
       '<div class="data-mgmt-actions">' +
         '<button type="button" id="btn-export">Export JSON</button>' +
         '<button type="button" id="btn-import">Import JSON</button>' +
+        '<button type="button" id="btn-import-3cb">Import 3CB</button>' +
         '<button type="button" id="btn-wipe" class="btn-danger">Wipe All Data</button>' +
       '</div>';
 
     document.getElementById('btn-export').addEventListener('click', handleExport);
     document.getElementById('btn-import').addEventListener('click', handleImport);
+    document.getElementById('btn-import-3cb').addEventListener('click', function () {
+      if (window.Nashme3CBImport) Nashme3CBImport.show();
+    });
     document.getElementById('btn-wipe').addEventListener('click', handleWipe);
   }
 
