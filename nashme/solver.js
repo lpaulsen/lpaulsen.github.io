@@ -6,7 +6,7 @@
 (function () {
   var ITERATIONS = 5000;
   var ETA = 0.02;       // learning rate
-  var ALPHA = 0.05;     // rubber-band blend toward uniform
+  var ALPHA = 0.001;    // rubber-band blend toward uniform
   var FLOOR = 1e-10;    // minimum weight to avoid numerical issues
 
   // Monte Carlo constants
@@ -114,10 +114,39 @@
   }
 
   /**
+   * Compute a similarity factor for the deck pool based on card overlap.
+   * When many decks share 2/3 cards, returns a lower factor to reduce ALPHA further.
+   * Range: 1.0 (no overlap) to 0.1 (all pairs overlap).
+   */
+  function computeSimilarityFactor(decks) {
+    if (decks.length < 2) return 1.0;
+    var pairsWithOverlap = 0;
+    var totalPairs = 0;
+    for (var i = 0; i < decks.length; i++) {
+      for (var j = i + 1; j < decks.length; j++) {
+        totalPairs++;
+        var shared = 0;
+        for (var a = 0; a < 3; a++) {
+          for (var b = 0; b < 3; b++) {
+            if (decks[i].cards[a].toLowerCase() === decks[j].cards[b].toLowerCase()) {
+              shared++;
+              break;
+            }
+          }
+        }
+        if (shared >= 2) pairsWithOverlap++;
+      }
+    }
+    if (totalPairs === 0) return 1.0;
+    var overlapRatio = pairsWithOverlap / totalPairs;
+    return 1.0 - 0.9 * overlapRatio;
+  }
+
+  /**
    * Multiplicative Weights Update (Hedge) with time-averaging and rubber band.
    * Returns the time-averaged weight distribution.
    */
-  function mwu(M, n) {
+  function mwu(M, n, similarityFactor) {
     if (n === 0) return [];
     if (n === 1) return [1.0];
 
@@ -148,9 +177,10 @@
         w[i] = w[i] * (1 + ETA * E[i]);
       }
 
-      // Rubber band: blend toward uniform
+      // Rubber band: blend toward uniform (scaled by similarity factor)
+      var effectiveAlpha = ALPHA * (similarityFactor || 1.0);
       for (i = 0; i < n; i++) {
-        w[i] = (1 - ALPHA) * w[i] + ALPHA * uniform;
+        w[i] = (1 - effectiveAlpha) * w[i] + effectiveAlpha * uniform;
       }
 
       // Floor small weights
@@ -239,7 +269,8 @@
 
     // Build payoff matrix and run MWU
     var M = buildPayoffMatrix(decks, matchups, winPoints);
-    var avgWeights = mwu(M, n);
+    var simFactor = computeSimilarityFactor(decks);
+    var avgWeights = mwu(M, n, simFactor);
 
     // Convert to {deckId: weight} map
     var weights = {};
@@ -277,7 +308,8 @@
 
     // Step 1: Run classic MWU to get base weights
     var M = buildPayoffMatrix(decks, matchups, winPoints);
-    var baseWeights = mwu(M, n);
+    var simFactor = computeSimilarityFactor(decks);
+    var baseWeights = mwu(M, n, simFactor);
 
     // Step 2: Monte Carlo simulation
     // Build Dirichlet alpha parameters
