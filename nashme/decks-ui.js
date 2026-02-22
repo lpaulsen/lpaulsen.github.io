@@ -21,31 +21,37 @@
       tooltipEl.id = 'nashme-card-tooltip';
       tooltipEl.className = 'nashme-card-tooltip';
       tooltipEl.style.display = 'none';
-      tooltipEl.innerHTML = '<img src="" alt="" />';
+      tooltipEl.innerHTML = '<div class="nashme-card-tooltip-images"></div>';
       document.body.appendChild(tooltipEl);
     }
   }
 
   function showTooltip(target) {
     clearTimeout(tooltipTimer);
-    var cardName = target.getAttribute('data-card');
-    if (!cardName || !window.NashmeScryfall) return;
+    var cardsStr = target.getAttribute('data-cards');
+    if (!cardsStr || !window.NashmeScryfall) return;
+    var cards = cardsStr.split('||');
 
     tooltipTimer = setTimeout(function () {
       ensureTooltip();
-      var img = tooltipEl.querySelector('img');
-      img.src = NashmeScryfall.getImageUrl(cardName, 'normal');
-      img.alt = cardName;
+      var imagesDiv = tooltipEl.querySelector('.nashme-card-tooltip-images');
+      var html = '';
+      for (var i = 0; i < cards.length; i++) {
+        html += '<img src="' + NashmeScryfall.getImageUrl(cards[i], 'normal') + '" alt="' + cards[i].replace(/"/g, '&quot;') + '" />';
+      }
+      imagesDiv.innerHTML = html;
 
       var rect = target.getBoundingClientRect();
+      var tooltipWidth = 740;
+      var tooltipHeight = 360;
       var top = rect.bottom + 8;
-      var left = rect.left + (rect.width / 2) - 124;
+      var left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
 
       if (left < 8) left = 8;
-      if (left + 248 > window.innerWidth - 8) left = window.innerWidth - 256;
+      if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8;
 
-      if (top + 360 > window.innerHeight) {
-        top = rect.top - 360 - 8;
+      if (top + tooltipHeight > window.innerHeight) {
+        top = rect.top - tooltipHeight - 8;
         if (top < 8) top = 8;
       }
 
@@ -97,19 +103,21 @@
         li.style.display = 'none';
       }
 
+      // Store all card names for deck tooltip
+      var cardsAttr = deck.cards.map(function(c) { return c.replace(/"/g, '&quot;'); }).join('||');
+      li.setAttribute('data-cards', cardsAttr);
+
       var label = document.createElement('span');
       label.className = 'deck-cards';
-      // Build card names with per-card banned styling
+      // Build card names with per-card banned styling (plain text, no hover spans)
       var cardHtml = '';
       for (var c = 0; c < deck.cards.length; c++) {
         if (c > 0) cardHtml += ' · ';
         var cardName = deck.cards[c];
-        var escapedName = cardName.replace(/"/g, '&quot;');
-        var hoverSpan = '<span class="nashme-card-hover" data-card="' + escapedName + '">' + cardName + '</span>';
         if (data.isBanned(cardName)) {
-          cardHtml += '<span class="deck-card--banned">' + hoverSpan + '</span>';
+          cardHtml += '<span class="deck-card--banned">' + cardName + '</span>';
         } else {
-          cardHtml += hoverSpan;
+          cardHtml += cardName;
         }
       }
       label.innerHTML = cardHtml;
@@ -294,15 +302,15 @@
     cancelBtnEl.addEventListener('click', handleCancel);
     deckListEl.addEventListener('click', handleDeckClick);
 
-    // Tooltip event delegation
+    // Tooltip event delegation — target deck items with data-cards
     container.addEventListener('mouseenter', function (e) {
-      var hover = e.target.closest('.nashme-card-hover');
-      if (hover) showTooltip(hover);
+      var target = e.target.closest('[data-cards]');
+      if (target) showTooltip(target);
     }, true);
 
     container.addEventListener('mouseleave', function (e) {
-      var hover = e.target.closest('.nashme-card-hover');
-      if (hover) hideTooltip();
+      var target = e.target.closest('[data-cards]');
+      if (target) hideTooltip();
     }, true);
 
     // Show/hide banned decks toggle

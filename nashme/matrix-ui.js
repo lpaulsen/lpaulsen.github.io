@@ -22,31 +22,37 @@
       tooltipEl.id = 'nashme-card-tooltip';
       tooltipEl.className = 'nashme-card-tooltip';
       tooltipEl.style.display = 'none';
-      tooltipEl.innerHTML = '<img src="" alt="" />';
+      tooltipEl.innerHTML = '<div class="nashme-card-tooltip-images"></div>';
       document.body.appendChild(tooltipEl);
     }
   }
 
   function showTooltip(target) {
     clearTimeout(tooltipTimer);
-    var cardName = target.getAttribute('data-card');
-    if (!cardName || !window.NashmeScryfall) return;
+    var cardsStr = target.getAttribute('data-cards');
+    if (!cardsStr || !window.NashmeScryfall) return;
+    var cards = cardsStr.split('||');
 
     tooltipTimer = setTimeout(function () {
       ensureTooltip();
-      var img = tooltipEl.querySelector('img');
-      img.src = NashmeScryfall.getImageUrl(cardName, 'normal');
-      img.alt = cardName;
+      var imagesDiv = tooltipEl.querySelector('.nashme-card-tooltip-images');
+      var html = '';
+      for (var i = 0; i < cards.length; i++) {
+        html += '<img src="' + NashmeScryfall.getImageUrl(cards[i], 'normal') + '" alt="' + cards[i].replace(/"/g, '&quot;') + '" />';
+      }
+      imagesDiv.innerHTML = html;
 
       var rect = target.getBoundingClientRect();
+      var tooltipWidth = 740;
+      var tooltipHeight = 360;
       var top = rect.bottom + 8;
-      var left = rect.left + (rect.width / 2) - 124;
+      var left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
 
       if (left < 8) left = 8;
-      if (left + 248 > window.innerWidth - 8) left = window.innerWidth - 256;
+      if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8;
 
-      if (top + 360 > window.innerHeight) {
-        top = rect.top - 360 - 8;
+      if (top + tooltipHeight > window.innerHeight) {
+        top = rect.top - tooltipHeight - 8;
         if (top < 8) top = 8;
       }
 
@@ -92,12 +98,7 @@
 
   function deckLabel(deck, weights) {
     if (!deck || !deck.cards) return deck ? deck.id : '?';
-    var lines = [];
-    for (var i = 0; i < deck.cards.length; i++) {
-      var card = deck.cards[i];
-      var escaped = card.replace(/"/g, '&quot;');
-      lines.push('<span class="nashme-card-hover" data-card="' + escaped + '">' + card + '</span>');
-    }
+    var lines = deck.cards.slice();
     if (weights && weights[deck.id] !== undefined) {
       lines.push('<strong>' + (weights[deck.id] * 100).toFixed(1) + '%</strong>');
     }
@@ -211,6 +212,7 @@
       var th = document.createElement('th');
       th.innerHTML = deckLabel(decks[c], weights);
       th.title = deckLabelPlain(decks[c], weights);
+      th.setAttribute('data-cards', decks[c].cards.map(function(cd) { return cd.replace(/"/g, '&quot;'); }).join('||'));
       headerRow.appendChild(th);
     }
     thead.appendChild(headerRow);
@@ -225,6 +227,7 @@
       var rowTh = document.createElement('th');
       rowTh.innerHTML = deckLabel(decks[r], weights);
       rowTh.title = deckLabelPlain(decks[r], weights);
+      rowTh.setAttribute('data-cards', decks[r].cards.map(function(cd) { return cd.replace(/"/g, '&quot;'); }).join('||'));
       if (r === 0) {
         // Add "On the Play" label to first row header area — already in corner cell
       }
@@ -243,16 +246,16 @@
       tbody.appendChild(tr);
     }
 
-    // Tooltip event delegation (attach only once)
+    // Tooltip event delegation (attach only once) — target elements with data-cards
     if (!tooltipListenersAttached) {
       container.addEventListener('mouseenter', function (e) {
-        var hover = e.target.closest('.nashme-card-hover');
-        if (hover) showTooltip(hover);
+        var target = e.target.closest('[data-cards]');
+        if (target) showTooltip(target);
       }, true);
 
       container.addEventListener('mouseleave', function (e) {
-        var hover = e.target.closest('.nashme-card-hover');
-        if (hover) hideTooltip();
+        var target = e.target.closest('[data-cards]');
+        if (target) hideTooltip();
       }, true);
 
       tooltipListenersAttached = true;

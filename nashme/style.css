@@ -619,7 +619,7 @@ h2 {
   font-size: 1rem;
 }
 
-/* Card name tooltip */
+/* Card deck tooltip — shows all 3 cards */
 .nashme-card-tooltip {
   position: fixed;
   z-index: 9999;
@@ -627,16 +627,17 @@ h2 {
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  padding: 4px;
+  padding: 6px;
 }
 
-.nashme-card-tooltip img {
+.nashme-card-tooltip-images {
+  display: flex;
+  gap: 6px;
+}
+
+.nashme-card-tooltip-images img {
   display: block;
   width: 240px;
   height: auto;
   border-radius: 6px;
-}
-
-.nashme-card-hover {
-  cursor: default;
 }
