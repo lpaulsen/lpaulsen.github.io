@@ -356,6 +356,33 @@ h2 {
   letter-spacing: 0.05em;
 }
 
+.eq-direction-play {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+}
+
+.eq-direction-vs {
+  color: #999;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.eq-direction-draw {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #555;
+  text-align: left;
+}
+
 /* W/T/L button group */
 .eq-wtl-group {
   display: inline-flex;

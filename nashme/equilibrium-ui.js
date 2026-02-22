@@ -192,9 +192,10 @@
     return html;
   }
 
-  function buildWtlControls(playId, drawId, currentResult) {
+  function buildWtlControls(playId, drawId, currentResult, playName, drawName) {
     var results = ['W', 'T', 'L'];
     var html = '<div class="eq-direction-row">';
+    html += '<span class="eq-direction-play">' + playName + '</span> ';
     if (currentResult !== null) {
       html += '<span class="eq-result-badge eq-result-' + currentResult + '">' + currentResult + '</span>';
     } else {
@@ -204,6 +205,8 @@
       }
       html += '</span>';
     }
+    html += ' <span class="eq-direction-vs">vs</span> ';
+    html += '<span class="eq-direction-draw">' + drawName + '</span>';
     html += '</div>';
     return html;
   }
@@ -292,10 +295,10 @@
     var directionsHtml = '<div class="eq-next-directions">';
     directionsHtml += '<div class="eq-direction-header">On the play</div>';
     if (isMirror) {
-      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB);
+      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, nameA, nameB);
     } else {
-      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB);
-      directionsHtml += buildWtlControls(nextPair.deckB, nextPair.deckA, resultBA);
+      directionsHtml += buildWtlControls(nextPair.deckA, nextPair.deckB, resultAB, nameA, nameB);
+      directionsHtml += buildWtlControls(nextPair.deckB, nextPair.deckA, resultBA, nameB, nameA);
     }
     directionsHtml += '</div>';
 
@@ -303,7 +306,6 @@
     var deckAHtml =
       '<div class="eq-next-deck-group">' +
         buildCardImages(deckA.cards) +
-        '<div class="eq-next-deck-name">' + nameA + '</div>' +
       '</div>';
 
     // Build deck B images (below controls)
@@ -312,10 +314,7 @@
       deckBHtml =
         '<div class="eq-next-deck-group">' +
           buildCardImages(deckB.cards) +
-          '<div class="eq-next-deck-name">' + nameB + '</div>' +
         '</div>';
-    } else {
-      deckBHtml = '<div class="eq-next-deck-name">Mirror match</div>';
     }
 
     // Determine if any directions are unevaluated (for submit button state)
