@@ -250,7 +250,17 @@
     // Find highest-priority unevaluated pair
     var nextPair = findNextPair(decks, matchups, weights);
 
-    return { weights: weights, nextPair: nextPair, scores: null };
+    // Compute deterministic scores against the metagame
+    var scores = {};
+    for (var i = 0; i < n; i++) {
+      var score = 0;
+      for (var j = 0; j < n; j++) {
+        score += avgWeights[j] * M[i][j];
+      }
+      scores[decks[i].id] = { p10: score, p50: score, p90: score };
+    }
+
+    return { weights: weights, nextPair: nextPair, scores: scores };
   }
 
   /**
