@@ -270,14 +270,6 @@ h2 {
 }
 
 /* Next Matchup Card Images */
-.eq-next-decks {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  margin-bottom: 0.75rem;
-}
-
 .eq-next-deck-group {
   display: flex;
   flex-direction: column;
@@ -322,13 +314,6 @@ h2 {
   }
 }
 
-.eq-next-vs {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #666;
-  align-self: center;
-}
-
 .eq-next-deck-name {
   font-size: 0.8rem;
   color: #555;
@@ -369,24 +354,6 @@ h2 {
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.eq-direction-play {
-  font-weight: 600;
-  color: #333;
-  text-align: right;
-  min-width: 80px;
-}
-
-.eq-direction-vs {
-  color: #999;
-  font-size: 0.75rem;
-  font-style: italic;
-}
-
-.eq-direction-draw {
-  color: #555;
-  min-width: 80px;
 }
 
 /* W/T/L button group */
