@@ -12,6 +12,11 @@
 
   // --- Rendering ---
 
+  function getShowBanned() {
+    var stored = localStorage.getItem('nashme_show_banned');
+    return stored !== 'false'; // default true
+  }
+
   function renderDeckList() {
     var decks = data.getDecks();
     deckListEl.innerHTML = '';
@@ -22,19 +27,49 @@
     }
     emptyEl.style.display = 'none';
 
+    var showBanned = getShowBanned();
+
     for (var i = 0; i < decks.length; i++) {
       var deck = decks[i];
+      var deckBanned = data.isDeckBanned(deck);
       var li = document.createElement('li');
       li.className = 'deck-item';
+      if (deckBanned) {
+        li.classList.add('deck-item--banned');
+      }
       if (editingDeckId === deck.id) {
         li.classList.add('deck-item--editing');
       }
       li.setAttribute('data-deck-id', deck.id);
 
+      // Hide banned decks if toggle is off
+      if (deckBanned && !showBanned) {
+        li.style.display = 'none';
+      }
+
       var label = document.createElement('span');
       label.className = 'deck-cards';
-      label.textContent = deck.cards.join(' · ');
+      // Build card names with per-card banned styling
+      var cardHtml = '';
+      for (var c = 0; c < deck.cards.length; c++) {
+        if (c > 0) cardHtml += ' · ';
+        var cardName = deck.cards[c];
+        if (data.isBanned(cardName)) {
+          cardHtml += '<span class="deck-card--banned">' + cardName + '</span>';
+        } else {
+          cardHtml += cardName;
+        }
+      }
+      label.innerHTML = cardHtml;
       li.appendChild(label);
+
+      // Add banned badge
+      if (deckBanned) {
+        var badge = document.createElement('span');
+        badge.className = 'deck-banned-badge';
+        badge.textContent = '🚫';
+        li.appendChild(badge);
+      }
 
       var editBtn = document.createElement('button');
       editBtn.className = 'deck-edit-btn';
@@ -176,8 +211,10 @@
     var container = document.getElementById('deck-manager');
     if (!container) return;
 
+    var showBannedChecked = getShowBanned() ? ' checked' : '';
     container.innerHTML =
       '<h2>Decks</h2>' +
+      '<label class="deck-banned-toggle"><input type="checkbox" id="show-banned-toggle"' + showBannedChecked + '> Show banned decks</label>' +
       '<p class="empty-state" id="deck-empty">No decks yet. Add one below!</p>' +
       '<ul class="deck-list" id="deck-list"></ul>' +
       '<form class="deck-form" id="deck-form">' +
@@ -204,6 +241,15 @@
     formEl.addEventListener('submit', handleSubmit);
     cancelBtnEl.addEventListener('click', handleCancel);
     deckListEl.addEventListener('click', handleDeckClick);
+
+    // Show/hide banned decks toggle
+    var showBannedToggle = document.getElementById('show-banned-toggle');
+    if (showBannedToggle) {
+      showBannedToggle.addEventListener('change', function () {
+        localStorage.setItem('nashme_show_banned', this.checked ? 'true' : 'false');
+        renderDeckList();
+      });
+    }
 
     renderDeckList();
   }

@@ -467,6 +467,34 @@ h2 {
 }
 
 
+/* Banned deck styling */
+.deck-item--banned {
+  opacity: 0.5;
+}
+
+.deck-card--banned {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.deck-banned-badge {
+  font-size: 0.75rem;
+  color: #c0392b;
+  margin-left: 0.5rem;
+}
+
+.deck-banned-toggle {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.deck-banned-toggle input {
+  margin-right: 0.35rem;
+}
+
 /* Banlist Section */
 .banlist-section {
   margin-top: 2rem;

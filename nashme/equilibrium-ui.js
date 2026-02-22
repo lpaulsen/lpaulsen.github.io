@@ -239,7 +239,14 @@
     var solver = window.NashmeSolver;
     if (!data || !solver) return;
 
-    var decks = data.getDecks();
+    var allDecks = data.getDecks();
+    // Filter out banned decks
+    var decks = [];
+    for (var i = 0; i < allDecks.length; i++) {
+      if (!data.isDeckBanned(allDecks[i])) {
+        decks.push(allDecks[i]);
+      }
+    }
     var matchups = data.getAllMatchups();
     var winPoints = getWinPoints();
 
