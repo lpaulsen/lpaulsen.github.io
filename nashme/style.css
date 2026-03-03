@@ -1,0 +1,766 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  background: #f5f5f5;
+  color: #333;
+}
+
+main {
+  max-width: 95vw;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+h2 {
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+/* Empty state */
+.empty-state {
+  color: #888;
+  font-style: italic;
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+/* Deck list */
+.deck-list {
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.deck-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.15s;
+}
+
+.deck-item:hover {
+  border-color: #999;
+}
+
+.deck-item--editing {
+  border-color: #4a90d9;
+  background: #f0f6ff;
+}
+
+.deck-cards {
+  font-size: 1rem;
+}
+
+.deck-edit-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.deck-edit-btn:hover {
+  background: #eee;
+  border-color: #999;
+}
+
+/* Deck form */
+.deck-form {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.deck-form input[type="text"] {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.deck-form input[type="text"]:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+/* Deck form errors */
+.deck-form-errors {
+  color: #c0392b;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.deck-form-errors p {
+  margin-bottom: 0.25rem;
+}
+
+/* Submit button disabled state */
+.deck-form-actions button[type="submit"]:disabled {
+  background: #a0c4e8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.deck-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.deck-form-actions button {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.deck-form-actions button[type="submit"] {
+  background: #4a90d9;
+  color: #fff;
+}
+
+.deck-form-actions button[type="submit"]:hover {
+  background: #3a7bc8;
+}
+
+.deck-form-actions button[type="button"] {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.deck-form-actions button[type="button"]:hover {
+  background: #ccc;
+}
+
+/* Data Management */
+#data-management {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.data-mgmt-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.data-mgmt-actions button {
+  padding: 0.5rem 1.25rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background: #fff;
+  color: #333;
+}
+
+.data-mgmt-actions button:hover {
+  background: #eee;
+  border-color: #999;
+}
+
+.data-mgmt-actions .btn-danger {
+  color: #721c24;
+  border-color: #f5c6cb;
+}
+
+.data-mgmt-actions .btn-danger:hover {
+  background: #f8d7da;
+  border-color: #f1b0b7;
+}
+
+/* Equilibrium Config */
+#equilibrium-config {
+  margin: 1.5rem 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.eq-config-label {
+  font-size: 0.95rem;
+  color: #555;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.eq-win-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.eq-win-select:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+.eq-mode-select {
+  font-size: 0.95rem;
+  padding: 0.15rem 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.deck-score-range {
+  font-weight: 400;
+  color: #888;
+}
+
+/* Next Matchup Recommendation */
+#next-matchup {
+  margin-bottom: 1rem;
+}
+
+.eq-next-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left: 4px solid #4a90d9;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+}
+
+.eq-next-msg {
+  color: #888;
+  font-style: italic;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.eq-next-done {
+  color: #155724;
+  font-style: normal;
+}
+
+.eq-needs-eval {
+  color: #856404;
+  font-weight: 600;
+}
+
+/* Next Matchup Card Images */
+.eq-next-deck-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.eq-next-deck-images {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.eq-next-deck-images img {
+  width: 170px;
+  height: 237px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.eq-next-deck-images .eq-img-fallback {
+  width: 170px;
+  height: 237px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9ecef;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  color: #666;
+  text-align: center;
+  padding: 0.25rem;
+  word-break: break-word;
+}
+
+@media (max-width: 700px) {
+  .eq-next-deck-images img,
+  .eq-next-deck-images .eq-img-fallback {
+    width: 80px;
+    height: 112px;
+  }
+}
+
+.eq-next-deck-name {
+  font-size: 0.8rem;
+  color: #555;
+  text-align: center;
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eq-next-direction {
+  text-align: center;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+/* Next Matchup Direction Controls */
+.eq-next-directions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.eq-direction-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.eq-direction-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.eq-direction-play {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+}
+
+.eq-direction-vs {
+  color: #999;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.eq-direction-draw {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #555;
+  text-align: left;
+}
+
+/* W/T/L button group */
+.eq-wtl-group {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.eq-wtl-btn {
+  width: 32px;
+  height: 28px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.75rem;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.eq-wtl-btn:hover {
+  filter: brightness(0.92);
+}
+
+.eq-wtl-W {
+  border-color: #28a745;
+  color: #155724;
+}
+
+.eq-wtl-T {
+  border-color: #ffc107;
+  color: #856404;
+}
+
+.eq-wtl-L {
+  border-color: #dc3545;
+  color: #721c24;
+}
+
+.eq-wtl-btn.active.eq-wtl-W {
+  background: #28a745;
+  color: #fff;
+}
+
+.eq-wtl-btn.active.eq-wtl-T {
+  background: #ffc107;
+  color: #333;
+}
+
+.eq-wtl-btn.active.eq-wtl-L {
+  background: #dc3545;
+  color: #fff;
+}
+
+/* Read-only result badge */
+.eq-result-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.eq-result-W {
+  background: #d4edda;
+  color: #155724;
+}
+
+.eq-result-T {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.eq-result-L {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Submit & Next button */
+.eq-submit-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  background: #4a90d9;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.eq-submit-btn:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+.eq-submit-btn:disabled {
+  background: #a0c4e8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Refresh Grid button */
+.nashme-refresh-btn {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.nashme-refresh-btn:hover {
+  background: #eee;
+  border-color: #999;
+}
+
+
+/* Banned deck styling */
+.deck-item--banned {
+  opacity: 0.5;
+}
+
+.deck-card--banned {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.deck-banned-badge {
+  font-size: 0.75rem;
+  color: #c0392b;
+  margin-left: 0.5rem;
+}
+
+.deck-banned-toggle {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.deck-banned-toggle input {
+  margin-right: 0.35rem;
+}
+
+/* Banlist Section */
+.banlist-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.banlist-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.banlist-header h2 {
+  display: inline;
+  margin: 0;
+}
+
+.banlist-toggle-arrow {
+  font-size: 0.8rem;
+  color: #555;
+  width: 1rem;
+  text-align: center;
+}
+
+.banlist-body.collapsed {
+  display: none;
+}
+
+.banlist-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.banlist-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+}
+
+.banlist-input:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+.banlist-add-btn {
+  align-self: flex-end;
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background: #4a90d9;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.banlist-add-btn:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+.banlist-add-btn:disabled {
+  background: #a0c4e8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.banlist-error {
+  color: #c0392b;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+  min-height: 0;
+}
+
+.banlist-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.banlist-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #e9ecef;
+  border: 1px solid #ccc;
+  border-radius: 16px;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.banlist-item .banlist-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #888;
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
+.banlist-item .banlist-remove:hover {
+  color: #c0392b;
+}
+
+.banlist-empty {
+  color: #888;
+  font-style: italic;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.banlist-count {
+  font-weight: 400;
+  color: #888;
+  font-size: 1rem;
+}
+
+/* Card deck tooltip — shows all 3 cards */
+.nashme-card-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 6px;
+}
+
+.nashme-card-tooltip-images {
+  display: flex;
+  gap: 6px;
+}
+
+.nashme-card-tooltip-images img {
+  display: block;
+  width: 240px;
+  height: auto;
+  border-radius: 6px;
+}
+
+
+/* 3CB Import */
+.import-3cb-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.import-3cb-textarea {
+  width: 100%;
+  min-height: 150px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.import-3cb-textarea:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+.import-3cb-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.import-3cb-results {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.import-3cb-results .success {
+  color: #27ae60;
+}
+
+.import-3cb-results .warning {
+  color: #e67e22;
+}
+
+.import-3cb-results .error {
+  color: #c0392b;
+}
+
+/* Manual mode weight arrows */
+.weight-arrow {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.6rem;
+  color: #999;
+  padding: 0 2px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.weight-arrow:hover {
+  color: #4a90d9;
+}
+
+.deck-section-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.deck-section-toggle:hover {
+  color: #4a90d9;
+}
