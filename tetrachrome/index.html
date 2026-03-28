@@ -157,34 +157,39 @@
       });
     }
 
-    // Convert SPD to XYZ then to sRGB
-    function spdToRGB(spd) {
+    // Convert SPD to raw XYZ (unnormalized)
+    function spdToXYZ(spd) {
       let X = 0, Y = 0, Z = 0;
       for (let i = 0; i < spd.length; i++) {
         X += spd[i] * CIE_X[i];
         Y += spd[i] * CIE_Y[i];
         Z += spd[i] * CIE_Z[i];
       }
-      // Normalize so the brightest color channel approaches 1
-      const scale = 1 / Math.max(Y, 0.0001);
-      X *= scale; Y *= scale; Z *= scale;
+      return [X, Y, Z];
+    }
+
+    // Convert XYZ to sRGB given a shared normalization factor
+    function xyzToRGB(X, Y, Z, normScale) {
+      X *= normScale; Y *= normScale; Z *= normScale;
 
       // XYZ to linear sRGB (D65)
       let r =  3.2406 * X - 1.5372 * Y - 0.4986 * Z;
       let g = -0.9689 * X + 1.8758 * Y + 0.0415 * Z;
       let b =  0.0557 * X - 0.2040 * Y + 1.0570 * Z;
 
-      // Clamp negatives, then normalize if any channel > 1
+      // Clamp negatives
       r = Math.max(0, r); g = Math.max(0, g); b = Math.max(0, b);
-      const mx = Math.max(r, g, b, 1);
-      r /= mx; g /= mx; b /= mx;
 
-      // sRGB gamma
+      // sRGB gamma (no per-color normalization — brightness differences preserved)
       const gamma = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1/2.4) - 0.055;
-      return [Math.round(255 * gamma(r)), Math.round(255 * gamma(g)), Math.round(255 * gamma(b))];
+      return [
+        Math.round(255 * Math.min(1, gamma(r))),
+        Math.round(255 * Math.min(1, gamma(g))),
+        Math.round(255 * Math.min(1, gamma(b))),
+      ];
     }
 
-    // Compute all colors
+    // Compute all colors with a shared normalization scale
     function computeColors() {
       const cones = getCones();
 
@@ -211,7 +216,14 @@
         tertiaries.push({ spd, label: `Tertiary ${trio.map(j => j+1).join('+')}`, cones: trio });
       }
 
-      return { primaries, secondaries, tertiaries };
+      // Compute XYZ for all colors, find shared norm scale from max luminance (Y)
+      const allColors = [...primaries, ...secondaries, ...tertiaries];
+      allColors.forEach(c => { c.xyz = spdToXYZ(c.spd); });
+      const maxY = Math.max(...allColors.map(c => c.xyz[1]), 0.0001);
+      const normScale = 1 / maxY;
+      allColors.forEach(c => { c.normScale = normScale; });
+
+      return { primaries, secondaries, tertiaries, normScale };
     }
 
     // Draw a mini SPD graph on a canvas for a color swatch
@@ -273,7 +285,7 @@
       const el = document.getElementById(containerId);
       el.innerHTML = '';
       colors.forEach(c => {
-        const [r, g, b] = spdToRGB(c.spd);
+        const [r, g, b] = xyzToRGB(...c.xyz, c.normScale);
         const hex = rgbToHex(r, g, b);
         const tc = textColor(r, g, b);
         const swatch = document.createElement('div');
@@ -332,11 +344,11 @@
 
     function update() {
       const cones = getCones();
-      const { primaries, secondaries, tertiaries } = computeColors();
+      const { primaries, secondaries, tertiaries, normScale } = computeColors();
 
-      // Derive hex colors from each primary's SPD
+      // Derive hex colors from each primary's XYZ with shared normalization
       const primaryHexColors = primaries.map(p => {
-        const [r, g, b] = spdToRGB(p.spd);
+        const [r, g, b] = xyzToRGB(...p.xyz, p.normScale);
         return rgbToHex(r, g, b);
       });
 
