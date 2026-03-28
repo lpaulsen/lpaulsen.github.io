@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tetrachromatic Vision Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 2rem; max-width: 900px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 0.5rem; color: #fff; }
+    .subtitle { text-align: center; color: #999; margin-bottom: 2rem; font-size: 0.9rem; }
+    .cone-inputs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .cone-card { background: #16213e; border-radius: 8px; padding: 1rem; text-align: center; }
+    .cone-card h3 { margin-bottom: 0.75rem; font-size: 0.95rem; }
+    .cone-card label { display: block; font-size: 0.8rem; color: #aaa; margin-bottom: 0.2rem; }
+    .cone-card input { width: 80px; padding: 0.3rem; border: 1px solid #444; border-radius: 4px; background: #0f3460; color: #fff; text-align: center; font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .color-section { margin-bottom: 2rem; }
+    .color-section h2 { margin-bottom: 1rem; font-size: 1.1rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; }
+    .color-grid { display: flex; flex-wrap: wrap; gap: 1rem; }
+    .color-swatch { border-radius: 8px; padding: 1rem; text-align: center; flex: 0 0 calc(25% - 0.75rem); }
+    .color-swatch .hex { font-family: monospace; font-size: 0.85rem; margin-top: 0.3rem; }
+    .color-swatch .wavelength { font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem; }
+    .color-swatch .color-name { font-weight: 600; font-size: 0.9rem; }
+    .color-swatch canvas.mini-graph { width: 100%; height: 50px; border-radius: 4px; margin-top: 0.5rem; background: rgba(0,0,0,0.25); }
+    canvas#spectrumCanvas { width: 100%; height: 200px; background: #16213e; border-radius: 8px; margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Tetrachromatic Vision Simulator</h1>
+  <p class="subtitle">Define 4 cone types by peak wavelength (nm) and standard deviation to explore a hypothetical tetrachromatic color space.</p>
+
+  <div class="cone-inputs" id="coneInputs"></div>
+
+  <canvas id="spectrumCanvas" height="200"></canvas>
+
+  <div class="color-section">
+    <h2>Primary Colors (4)</h2>
+    <div class="color-grid" id="primaries"></div>
+  </div>
+  <div class="color-section">
+    <h2>Secondary Colors (6)</h2>
+    <div class="color-grid" id="secondaries"></div>
+  </div>
+  <div class="color-section">
+    <h2>Tertiary Colors (4)</h2>
+    <div class="color-grid" id="tertiaries"></div>
+  </div>
+
+  <script>
+    // Default: 4 evenly-spaced cones across visible spectrum (380-700nm)
+    const defaults = [
+      { name: 'Cone A', mean: 420, sd: 30 },
+      { name: 'Cone B', mean: 490, sd: 30 },
+      { name: 'Cone C', mean: 560, sd: 30 },
+      { name: 'Cone D', mean: 630, sd: 30 },
+    ];
+
+    // Parse URL query params to override defaults
+    function getInitialValues() {
+      const params = new URLSearchParams(window.location.search);
+      return defaults.map((c, i) => ({
+        name: c.name,
+        mean: parseFloat(params.get(`m${i}`)) || c.mean,
+        sd: parseFloat(params.get(`s${i}`)) || c.sd,
+      }));
+    }
+
+    const initialValues = getInitialValues();
+
+    // Build input UI
+    const coneInputsEl = document.getElementById('coneInputs');
+    initialValues.forEach((c, i) => {
+      const card = document.createElement('div');
+      card.className = 'cone-card';
+      card.innerHTML = `
+        <h3>${c.name}</h3>
+        <label>Peak λ (nm)</label>
+        <input type="number" id="mean${i}" value="${c.mean}" min="280" max="800" step="1">
+        <label>Std Dev (nm)</label>
+        <input type="number" id="sd${i}" value="${c.sd}" min="5" max="100" step="1">
+      `;
+      coneInputsEl.appendChild(card);
+    });
+
+    // Gaussian
+    function gaussian(x, mean, sd) {
+      const d = x - mean;
+      return Math.exp(-0.5 * (d * d) / (sd * sd));
+    }
+
+    // Read cone params from inputs
+    function getCones() {
+      return [0, 1, 2, 3].map(i => ({
+        mean: parseFloat(document.getElementById(`mean${i}`).value),
+        sd: parseFloat(document.getElementById(`sd${i}`).value),
+      }));
+    }
+
+    // Wavelength to RGB (Dan Bruton's algorithm, adjusted)
+    function wavelengthToRGB(wl) {
+      let r = 0, g = 0, b = 0;
+      if (wl >= 380 && wl < 440) {
+        r = -(wl - 440) / (440 - 380); g = 0; b = 1;
+      } else if (wl >= 440 && wl < 490) {
+        r = 0; g = (wl - 440) / (490 - 440); b = 1;
+      } else if (wl >= 490 && wl < 510) {
+        r = 0; g = 1; b = -(wl - 510) / (510 - 490);
+      } else if (wl >= 510 && wl < 580) {
+        r = (wl - 510) / (580 - 510); g = 1; b = 0;
+      } else if (wl >= 580 && wl < 645) {
+        r = 1; g = -(wl - 645) / (645 - 580); b = 0;
+      } else if (wl >= 645 && wl <= 700) {
+        r = 1; g = 0; b = 0;
+      }
+      // Intensity falloff at edges
+      let factor = 1.0;
+      if (wl >= 380 && wl < 420) factor = 0.3 + 0.7 * (wl - 380) / (420 - 380);
+      else if (wl > 645 && wl <= 700) factor = 0.3 + 0.7 * (700 - wl) / (700 - 645);
+      else if (wl < 380 || wl > 700) factor = 0;
+      r = Math.round(255 * Math.pow(r * factor, 0.8));
+      g = Math.round(255 * Math.pow(g * factor, 0.8));
+      b = Math.round(255 * Math.pow(b * factor, 0.8));
+      return [r, g, b];
+    }
+
+    function rgbToHex(r, g, b) {
+      return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+    }
+
+    function textColor(r, g, b) {
+      return (r * 0.299 + g * 0.587 + b * 0.114) > 128 ? '#000' : '#fff';
+    }
+
+    const WL_MIN = 280, WL_MAX = 800, WL_RANGE = WL_MAX - WL_MIN;
+
+    // SPD wavelength buckets: 380-700nm in 10nm steps (33 buckets)
+    const SPD_MIN = 380, SPD_MAX = 700, SPD_STEP = 10;
+    const SPD_WLS = [];
+    for (let wl = SPD_MIN; wl <= SPD_MAX; wl += SPD_STEP) SPD_WLS.push(wl);
+
+    // CIE 1931 2° color matching functions, sampled at 10nm from 380-700nm
+    const CIE_X = [0.0014,0.0042,0.0143,0.0435,0.1344,0.2839,0.3483,0.3362,0.2908,0.1954,0.0956,0.032,0.0049,0.0093,0.0633,0.1655,0.2904,0.4334,0.5945,0.7621,0.9163,1.0263,1.0622,1.0026,0.8544,0.6424,0.4479,0.2835,0.1649,0.0874,0.0468,0.0227,0.0114];
+    const CIE_Y = [0.0,0.0001,0.0004,0.0012,0.004,0.0116,0.023,0.038,0.06,0.091,0.139,0.208,0.323,0.503,0.71,0.862,0.954,0.995,0.995,0.952,0.87,0.757,0.631,0.503,0.381,0.265,0.175,0.107,0.061,0.032,0.017,0.0082,0.0041];
+    const CIE_Z = [0.0065,0.0201,0.0679,0.2074,0.6456,1.3856,1.7471,1.7721,1.6692,1.2876,0.813,0.4652,0.272,0.1582,0.0782,0.0422,0.0203,0.0087,0.0039,0.0021,0.0017,0.0011,0.0008,0.0003,0.0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0];
+
+    // Build an SPD: for each wavelength bucket, power = max(0, sum(active) - sum(inactive))
+    function buildSPD(cones, activeCones) {
+      const inactive = [0,1,2,3].filter(j => !activeCones.includes(j));
+      return SPD_WLS.map(wl => {
+        const activeSum = activeCones.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
+        const inactiveSum = inactive.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
+        return Math.max(0, activeSum - inactiveSum);
+      });
+    }
+
+    // Convert SPD to XYZ then to sRGB
+    function spdToRGB(spd) {
+      let X = 0, Y = 0, Z = 0;
+      for (let i = 0; i < spd.length; i++) {
+        X += spd[i] * CIE_X[i];
+        Y += spd[i] * CIE_Y[i];
+        Z += spd[i] * CIE_Z[i];
+      }
+      // Normalize so the brightest color channel approaches 1
+      const scale = 1 / Math.max(Y, 0.0001);
+      X *= scale; Y *= scale; Z *= scale;
+
+      // XYZ to linear sRGB (D65)
+      let r =  3.2406 * X - 1.5372 * Y - 0.4986 * Z;
+      let g = -0.9689 * X + 1.8758 * Y + 0.0415 * Z;
+      let b =  0.0557 * X - 0.2040 * Y + 1.0570 * Z;
+
+      // Clamp negatives, then normalize if any channel > 1
+      r = Math.max(0, r); g = Math.max(0, g); b = Math.max(0, b);
+      const mx = Math.max(r, g, b, 1);
+      r /= mx; g /= mx; b /= mx;
+
+      // sRGB gamma
+      const gamma = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1/2.4) - 0.055;
+      return [Math.round(255 * gamma(r)), Math.round(255 * gamma(g)), Math.round(255 * gamma(b))];
+    }
+
+    // Compute all colors
+    function computeColors() {
+      const cones = getCones();
+
+      // Primaries: SPD favoring cone i over the rest
+      const primaries = [0, 1, 2, 3].map(i => {
+        const spd = buildSPD(cones, [i]);
+        return { spd, label: `Primary ${i + 1}`, cones: [i] };
+      });
+
+      // Secondaries: C(4,2)=6, SPD favoring 2 cones over the other 2
+      const secondaries = [];
+      for (let a = 0; a < 4; a++) {
+        for (let b = a + 1; b < 4; b++) {
+          const spd = buildSPD(cones, [a, b]);
+          secondaries.push({ spd, label: `Secondary ${a+1}+${b+1}`, cones: [a, b] });
+        }
+      }
+
+      // Tertiaries: C(4,3)=4, SPD favoring 3 cones over the remaining one
+      const tertiaries = [];
+      for (let excl = 0; excl < 4; excl++) {
+        const trio = [0,1,2,3].filter(j => j !== excl);
+        const spd = buildSPD(cones, trio);
+        tertiaries.push({ spd, label: `Tertiary ${trio.map(j => j+1).join('+')}`, cones: trio });
+      }
+
+      return { primaries, secondaries, tertiaries };
+    }
+
+    // Draw a mini SPD graph on a canvas for a color swatch
+    function drawMiniGraph(canvas, spd, primaryHexColors, activeCones) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const W = rect.width * dpr;
+      const H = rect.height * dpr;
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+
+      // Spectrum background (very faint)
+      for (let px = 0; px < W; px++) {
+        const wl = WL_MIN + (px / W) * WL_RANGE;
+        const [r, g, b] = wavelengthToRGB(wl);
+        ctx.fillStyle = `rgba(${r},${g},${b},0.1)`;
+        ctx.fillRect(px, 0, 1, H);
+      }
+
+      // Draw the SPD as a filled curve, colored by the spectrum at each point
+      const maxVal = Math.max(...spd, 0.0001);
+      // First draw a white outline of the SPD shape
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < SPD_WLS.length; i++) {
+        const px = ((SPD_WLS[i] - WL_MIN) / WL_RANGE) * W;
+        const y = H - (spd[i] / maxVal) * (H - 6) - 3;
+        if (i === 0) ctx.moveTo(px, y); else ctx.lineTo(px, y);
+      }
+      ctx.stroke();
+
+      // Fill under SPD with spectrum colors
+      for (let i = 0; i < SPD_WLS.length - 1; i++) {
+        if (spd[i] <= 0 && spd[i+1] <= 0) continue;
+        const px1 = ((SPD_WLS[i] - WL_MIN) / WL_RANGE) * W;
+        const px2 = ((SPD_WLS[i+1] - WL_MIN) / WL_RANGE) * W;
+        const y1 = H - (spd[i] / maxVal) * (H - 6) - 3;
+        const y2 = H - (spd[i+1] / maxVal) * (H - 6) - 3;
+        const midWl = (SPD_WLS[i] + SPD_WLS[i+1]) / 2;
+        const [r, g, b] = wavelengthToRGB(midWl);
+        ctx.beginPath();
+        ctx.moveTo(px1, y1);
+        ctx.lineTo(px2, y2);
+        ctx.lineTo(px2, H);
+        ctx.lineTo(px1, H);
+        ctx.closePath();
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
+    }
+
+    // Render color swatches
+    function renderSwatches(containerId, colors, cones, primaryHexColors) {
+      const el = document.getElementById(containerId);
+      el.innerHTML = '';
+      colors.forEach(c => {
+        const [r, g, b] = spdToRGB(c.spd);
+        const hex = rgbToHex(r, g, b);
+        const tc = textColor(r, g, b);
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.background = hex;
+        swatch.style.color = tc;
+        swatch.innerHTML = `
+          <div class="color-name">${c.label}</div>
+          <div class="hex">${hex}</div>
+          <canvas class="mini-graph"></canvas>
+        `;
+        el.appendChild(swatch);
+        const miniCanvas = swatch.querySelector('.mini-graph');
+        drawMiniGraph(miniCanvas, c.spd, primaryHexColors, c.cones);
+      });
+    }
+
+    // Draw spectrum canvas with cone curves
+    function drawSpectrum(cones, primaryHexColors) {
+      const canvas = document.getElementById('spectrumCanvas');
+      canvas.width = canvas.offsetWidth * 2;
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // Draw visible spectrum background
+      for (let px = 0; px < W; px++) {
+        const wl = WL_MIN + (px / W) * WL_RANGE;
+        const [r, g, b] = wavelengthToRGB(wl);
+        ctx.fillStyle = `rgba(${r},${g},${b},0.15)`;
+        ctx.fillRect(px, 0, 1, H);
+      }
+
+      // Draw cone curves
+      cones.forEach((cone, i) => {
+        ctx.beginPath();
+        ctx.strokeStyle = primaryHexColors[i];
+        ctx.lineWidth = 2;
+        for (let px = 0; px < W; px++) {
+          const wl = WL_MIN + (px / W) * WL_RANGE;
+          const y = H - gaussian(wl, cone.mean, cone.sd) * (H - 20) - 10;
+          if (px === 0) ctx.moveTo(px, y); else ctx.lineTo(px, y);
+        }
+        ctx.stroke();
+      });
+
+      // Axis labels
+      ctx.fillStyle = '#888';
+      ctx.font = '20px sans-serif';
+      for (let wl = 300; wl <= 800; wl += 50) {
+        const px = ((wl - WL_MIN) / WL_RANGE) * W;
+        ctx.fillText(`${wl}`, px - 12, H - 2);
+      }
+    }
+
+    function update() {
+      const cones = getCones();
+      const { primaries, secondaries, tertiaries } = computeColors();
+
+      // Derive hex colors from each primary's SPD
+      const primaryHexColors = primaries.map(p => {
+        const [r, g, b] = spdToRGB(p.spd);
+        return rgbToHex(r, g, b);
+      });
+
+      // Color the cone input cards
+      const cards = document.querySelectorAll('.cone-card');
+      cards.forEach((card, i) => {
+        card.style.borderLeft = `4px solid ${primaryHexColors[i]}`;
+        card.querySelector('h3').style.color = primaryHexColors[i];
+      });
+
+      renderSwatches('primaries', primaries, cones, primaryHexColors);
+      renderSwatches('secondaries', secondaries, cones, primaryHexColors);
+      renderSwatches('tertiaries', tertiaries, cones, primaryHexColors);
+      drawSpectrum(cones, primaryHexColors);
+    }
+
+    // Update URL query params to reflect current settings
+    function updateURL() {
+      const cones = getCones();
+      const params = new URLSearchParams();
+      cones.forEach((c, i) => {
+        params.set(`m${i}`, c.mean);
+        params.set(`s${i}`, c.sd);
+      });
+      const newURL = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState(null, '', newURL);
+    }
+
+    // Listen for input changes
+    document.getElementById('coneInputs').addEventListener('input', () => {
+      update();
+      updateURL();
+    });
+    window.addEventListener('resize', update);
+
+    // Initial render
+    update();
+  </script>
+</body>
+</html>
+
