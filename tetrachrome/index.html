@@ -143,13 +143,17 @@
     const CIE_Y = [0.0,0.0001,0.0004,0.0012,0.004,0.0116,0.023,0.038,0.06,0.091,0.139,0.208,0.323,0.503,0.71,0.862,0.954,0.995,0.995,0.952,0.87,0.757,0.631,0.503,0.381,0.265,0.175,0.107,0.061,0.032,0.017,0.0082,0.0041];
     const CIE_Z = [0.0065,0.0201,0.0679,0.2074,0.6456,1.3856,1.7471,1.7721,1.6692,1.2876,0.813,0.4652,0.272,0.1582,0.0782,0.0422,0.0203,0.0087,0.0039,0.0021,0.0017,0.0011,0.0008,0.0003,0.0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0];
 
-    // Build an SPD: for each wavelength bucket, power = max(0, sum(active) - sum(inactive))
+    // Build an SPD: weight each wavelength by active cone response scaled by selectivity.
+    // Uses activeSum² / (activeSum + inactiveSum) so overlapping cones attenuate
+    // rather than zero out the signal.
     function buildSPD(cones, activeCones) {
       const inactive = [0,1,2,3].filter(j => !activeCones.includes(j));
       return SPD_WLS.map(wl => {
         const activeSum = activeCones.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
         const inactiveSum = inactive.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
-        return Math.max(0, activeSum - inactiveSum);
+        const total = activeSum + inactiveSum;
+        if (total < 1e-10) return 0;
+        return (activeSum * activeSum) / total;
       });
     }
 
