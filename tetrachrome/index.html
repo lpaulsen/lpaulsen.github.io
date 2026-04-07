@@ -182,6 +182,18 @@
       return [Math.round(255 * gamma(r)), Math.round(255 * gamma(g)), Math.round(255 * gamma(b))];
     }
 
+    // Build a mixed SPD by combining energy-compressed primary SPDs.
+    // Each active cone's SPD is divided by energy^0.5 (square root),
+    // partially equalizing contributions without fully erasing energy differences.
+    function buildMixedSPD(cones, activeCones) {
+      const parts = activeCones.map(i => {
+        const spd = buildSPD(cones, [i]);
+        const energy = spd.reduce((s, v) => s + v, 0) || 1;
+        return spd.map(v => v / Math.sqrt(energy));
+      });
+      return SPD_WLS.map((_, i) => parts.reduce((s, p) => s + p[i], 0));
+    }
+
     // Compute all colors
     function computeColors() {
       const cones = getCones();
@@ -192,20 +204,20 @@
         return { spd, label: `Primary ${i + 1}`, cones: [i] };
       });
 
-      // Secondaries: C(4,2)=6, SPD favoring 2 cones over the other 2
+      // Secondaries: C(4,2)=6, energy-balanced mix of two primary SPDs
       const secondaries = [];
       for (let a = 0; a < 4; a++) {
         for (let b = a + 1; b < 4; b++) {
-          const spd = buildSPD(cones, [a, b]);
+          const spd = buildMixedSPD(cones, [a, b]);
           secondaries.push({ spd, label: `Secondary ${a+1}+${b+1}`, cones: [a, b] });
         }
       }
 
-      // Tertiaries: C(4,3)=4, SPD favoring 3 cones over the remaining one
+      // Tertiaries: C(4,3)=4, energy-balanced mix of three primary SPDs
       const tertiaries = [];
       for (let excl = 0; excl < 4; excl++) {
         const trio = [0,1,2,3].filter(j => j !== excl);
-        const spd = buildSPD(cones, trio);
+        const spd = buildMixedSPD(cones, trio);
         tertiaries.push({ spd, label: `Tertiary ${trio.map(j => j+1).join('+')}`, cones: trio });
       }
 
