@@ -143,53 +143,58 @@
     const CIE_Y = [0.0,0.0001,0.0004,0.0012,0.004,0.0116,0.023,0.038,0.06,0.091,0.139,0.208,0.323,0.503,0.71,0.862,0.954,0.995,0.995,0.952,0.87,0.757,0.631,0.503,0.381,0.265,0.175,0.107,0.061,0.032,0.017,0.0082,0.0041];
     const CIE_Z = [0.0065,0.0201,0.0679,0.2074,0.6456,1.3856,1.7471,1.7721,1.6692,1.2876,0.813,0.4652,0.272,0.1582,0.0782,0.0422,0.0203,0.0087,0.0039,0.0021,0.0017,0.0011,0.0008,0.0003,0.0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0];
 
-    // Build an SPD: weight each wavelength by active cone response scaled by selectivity.
-    // Uses activeSum² / (activeSum + inactiveSum) so overlapping cones attenuate
-    // rather than zero out the signal.
+    // Build an SPD: at each wavelength, the value is the difference between
+    // active cone response and inactive cone response, clamped to zero.
+    // Primary colors land where the active cone(s) most exceed the others.
     function buildSPD(cones, activeCones) {
       const inactive = [0,1,2,3].filter(j => !activeCones.includes(j));
       return SPD_WLS.map(wl => {
         const activeSum = activeCones.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
-        const inactiveSum = inactive.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
-        const total = activeSum + inactiveSum;
-        if (total < 1e-10) return 0;
-        return (activeSum * activeSum) / total;
+        const inactiveMax = inactive.reduce((mx, j) => Math.max(mx, gaussian(wl, cones[j].mean, cones[j].sd)), 0);
+        return Math.max(0, activeSum - inactiveMax);
       });
     }
 
-    // Convert SPD to raw XYZ (unnormalized)
-    function spdToXYZ(spd) {
+    // Convert SPD to XYZ then to sRGB
+    function spdToRGB(spd) {
       let X = 0, Y = 0, Z = 0;
       for (let i = 0; i < spd.length; i++) {
         X += spd[i] * CIE_X[i];
         Y += spd[i] * CIE_Y[i];
         Z += spd[i] * CIE_Z[i];
       }
-      return [X, Y, Z];
-    }
-
-    // Convert XYZ to sRGB given a shared normalization factor
-    function xyzToRGB(X, Y, Z, normScale) {
-      X *= normScale; Y *= normScale; Z *= normScale;
+      // Normalize so the brightest color channel approaches 1
+      const scale = 1 / Math.max(Y, 0.0001);
+      X *= scale; Y *= scale; Z *= scale;
 
       // XYZ to linear sRGB (D65)
       let r =  3.2406 * X - 1.5372 * Y - 0.4986 * Z;
       let g = -0.9689 * X + 1.8758 * Y + 0.0415 * Z;
       let b =  0.0557 * X - 0.2040 * Y + 1.0570 * Z;
 
-      // Clamp negatives
+      // Clamp negatives, then normalize if any channel > 1
       r = Math.max(0, r); g = Math.max(0, g); b = Math.max(0, b);
+      const mx = Math.max(r, g, b, 1);
+      r /= mx; g /= mx; b /= mx;
 
-      // sRGB gamma (no per-color normalization — brightness differences preserved)
+      // sRGB gamma
       const gamma = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1/2.4) - 0.055;
-      return [
-        Math.round(255 * Math.min(1, gamma(r))),
-        Math.round(255 * Math.min(1, gamma(g))),
-        Math.round(255 * Math.min(1, gamma(b))),
-      ];
+      return [Math.round(255 * gamma(r)), Math.round(255 * gamma(g)), Math.round(255 * gamma(b))];
     }
 
-    // Compute all colors with a shared normalization scale
+    // Build a mixed SPD by combining energy-compressed primary SPDs.
+    // Each active cone's SPD is divided by energy^0.5 (square root),
+    // partially equalizing contributions without fully erasing energy differences.
+    function buildMixedSPD(cones, activeCones) {
+      const parts = activeCones.map(i => {
+        const spd = buildSPD(cones, [i]);
+        const energy = spd.reduce((s, v) => s + v, 0) || 1;
+        return spd.map(v => v / Math.sqrt(energy));
+      });
+      return SPD_WLS.map((_, i) => parts.reduce((s, p) => s + p[i], 0));
+    }
+
+    // Compute all colors
     function computeColors() {
       const cones = getCones();
 
@@ -199,31 +204,24 @@
         return { spd, label: `Primary ${i + 1}`, cones: [i] };
       });
 
-      // Secondaries: C(4,2)=6, SPD favoring 2 cones over the other 2
+      // Secondaries: C(4,2)=6, energy-balanced mix of two primary SPDs
       const secondaries = [];
       for (let a = 0; a < 4; a++) {
         for (let b = a + 1; b < 4; b++) {
-          const spd = buildSPD(cones, [a, b]);
+          const spd = buildMixedSPD(cones, [a, b]);
           secondaries.push({ spd, label: `Secondary ${a+1}+${b+1}`, cones: [a, b] });
         }
       }
 
-      // Tertiaries: C(4,3)=4, SPD favoring 3 cones over the remaining one
+      // Tertiaries: C(4,3)=4, energy-balanced mix of three primary SPDs
       const tertiaries = [];
       for (let excl = 0; excl < 4; excl++) {
         const trio = [0,1,2,3].filter(j => j !== excl);
-        const spd = buildSPD(cones, trio);
+        const spd = buildMixedSPD(cones, trio);
         tertiaries.push({ spd, label: `Tertiary ${trio.map(j => j+1).join('+')}`, cones: trio });
       }
 
-      // Compute XYZ for all colors, find shared norm scale from max luminance (Y)
-      const allColors = [...primaries, ...secondaries, ...tertiaries];
-      allColors.forEach(c => { c.xyz = spdToXYZ(c.spd); });
-      const maxY = Math.max(...allColors.map(c => c.xyz[1]), 0.0001);
-      const normScale = 1 / maxY;
-      allColors.forEach(c => { c.normScale = normScale; });
-
-      return { primaries, secondaries, tertiaries, normScale };
+      return { primaries, secondaries, tertiaries };
     }
 
     // Draw a mini SPD graph on a canvas for a color swatch
@@ -285,7 +283,7 @@
       const el = document.getElementById(containerId);
       el.innerHTML = '';
       colors.forEach(c => {
-        const [r, g, b] = xyzToRGB(...c.xyz, c.normScale);
+        const [r, g, b] = spdToRGB(c.spd);
         const hex = rgbToHex(r, g, b);
         const tc = textColor(r, g, b);
         const swatch = document.createElement('div');
@@ -344,11 +342,11 @@
 
     function update() {
       const cones = getCones();
-      const { primaries, secondaries, tertiaries, normScale } = computeColors();
+      const { primaries, secondaries, tertiaries } = computeColors();
 
-      // Derive hex colors from each primary's XYZ with shared normalization
+      // Derive hex colors from each primary's SPD
       const primaryHexColors = primaries.map(p => {
-        const [r, g, b] = xyzToRGB(...p.xyz, p.normScale);
+        const [r, g, b] = spdToRGB(p.spd);
         return rgbToHex(r, g, b);
       });
 
