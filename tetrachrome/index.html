@@ -159,39 +159,38 @@
 
     const WL_MIN = 280, WL_MAX = 800, WL_RANGE = WL_MAX - WL_MIN;
 
-    // SPD wavelength buckets: 380-700nm in 10nm steps (33 buckets)
-    const SPD_MIN = 380, SPD_MAX = 700, SPD_STEP = 10;
-    const SPD_WLS = [];
-    for (let wl = SPD_MIN; wl <= SPD_MAX; wl += SPD_STEP) SPD_WLS.push(wl);
+    // SPD wavelength buckets: 380-700nm, 1nm per bucket
+    const SPD_WLS = Array.from({ length: 321 }, (_, i) => 380 + i);
 
-    // CIE 1931 2° color matching functions, sampled at 10nm from 380-700nm
-    const CIE_X = [0.0014,0.0042,0.0143,0.0435,0.1344,0.2839,0.3483,0.3362,0.2908,0.1954,0.0956,0.032,0.0049,0.0093,0.0633,0.1655,0.2904,0.4334,0.5945,0.7621,0.9163,1.0263,1.0622,1.0026,0.8544,0.6424,0.4479,0.2835,0.1649,0.0874,0.0468,0.0227,0.0114];
-    const CIE_Y = [0.0,0.0001,0.0004,0.0012,0.004,0.0116,0.023,0.038,0.06,0.091,0.139,0.208,0.323,0.503,0.71,0.862,0.954,0.995,0.995,0.952,0.87,0.757,0.631,0.503,0.381,0.265,0.175,0.107,0.061,0.032,0.017,0.0082,0.0041];
-    const CIE_Z = [0.0065,0.0201,0.0679,0.2074,0.6456,1.3856,1.7471,1.7721,1.6692,1.2876,0.813,0.4652,0.272,0.1582,0.0782,0.0422,0.0203,0.0087,0.0039,0.0021,0.0017,0.0011,0.0008,0.0003,0.0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0];
+	// Wyman/Sloan/Shirley analytic approximation to CIE 1931 XYZ CMFs.
+	// Good enough for visualization; use official CIE CSV for exact tabulated values.
+	function cie1931Approx(wl) {
+	  function g(x, mu, t1, t2) {
+		const t = x < mu ? t1 : t2;
+		return Math.exp(-0.5 * t * t * (x - mu) * (x - mu));
+	  }
 
-    // Build an SPD: at each wavelength, the value is the difference between
-    // active cone response and inactive cone response, clamped to zero.
-    // Primary colors land where the active cone(s) most exceed the others.
-    function buildSPD(cones, activeCones) {
-      const inactive = [0,1,2,3].filter(j => !activeCones.includes(j));
-      return SPD_WLS.map(wl => {
-        const activeSum = activeCones.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
-        const inactiveMax = inactive.reduce((mx, j) => Math.max(mx, gaussian(wl, cones[j].mean, cones[j].sd)), 0);
-        return Math.max(0, activeSum - inactiveMax);
-      });
-    }
+	  const x =
+		1.056 * g(wl, 599.8, 0.0264, 0.0323) +
+		0.362 * g(wl, 442.0, 0.0624, 0.0374) -
+		0.065 * g(wl, 501.1, 0.0490, 0.0382);
 
-	
-	function inferPrimaryWavelength(cones, activeCones) {
-	  const inactive = [0,1,2,3].filter(j => !activeCones.includes(j));
-	  const activations = SPD_WLS.map(wl => {
-        const activeSum = activeCones.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
-        const inactiveMax = inactive.reduce((mx, j) => Math.max(mx, gaussian(wl, cones[j].mean, cones[j].sd)), 0);
-        return Math.max(0, activeSum - inactiveMax);
-      });
-	  const maxActivation = activations.indexOf(Math.max(...activations))
-	  return SPD_WLS[maxActivation]
+	  const y =
+		0.821 * g(wl, 568.8, 0.0213, 0.0247) +
+		0.286 * g(wl, 530.9, 0.0613, 0.0322);
+
+	  const z =
+		1.217 * g(wl, 437.0, 0.0845, 0.0278) +
+		0.681 * g(wl, 459.0, 0.0385, 0.0725);
+
+	  return [Math.max(0, x), Math.max(0, y), Math.max(0, z)];
 	}
+
+	const CIE_WLS = Array.from({ length: 321 }, (_, i) => 380 + i);
+	const CIE_X = CIE_WLS.map(wl => cie1931Approx(wl)[0]);
+	const CIE_Y = CIE_WLS.map(wl => cie1931Approx(wl)[1]);
+	const CIE_Z = CIE_WLS.map(wl => cie1931Approx(wl)[2]);
+
 
     // Convert SPD to XYZ then to sRGB
     function spdToRGB(spd) {
@@ -201,9 +200,6 @@
         Y += spd[i] * CIE_Y[i];
         Z += spd[i] * CIE_Z[i];
       }
-      // Normalize so the brightest color channel approaches 1
-      // const scale = 1 / Math.max(Y, 0.0001);
-      // X *= scale; Y *= scale; Z *= scale;
 
       // XYZ to linear sRGB (D65)
       let r =  3.2406 * X - 1.5372 * Y - 0.4986 * Z;
@@ -219,59 +215,31 @@
       const gamma = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1/2.4) - 0.055;
       return [Math.round(255 * gamma(r)), Math.round(255 * gamma(g)), Math.round(255 * gamma(b))];
     }
-
-    // Build a mixed SPD by combining energy-compressed primary SPDs.
-    // Each active cone's SPD is divided by energy^0.5 (square root),
-    // partially equalizing contributions without fully erasing energy differences.
-    function buildMixedSPD(cones, activeCones) {
-      const parts = activeCones.map(i => {
-        const spd = buildSPD(cones, [i]);
-        const energy = spd.reduce((s, v) => s + v, 0) || 1;
-        return spd.map(v => v / Math.sqrt(energy));
+	
+	function inferPrimaryWavelength(cones, activeCones) {
+	  const inactive = [0,1,2,3].filter(j => !activeCones.includes(j));
+	  const activations = SPD_WLS.map(wl => {
+        const activeSum = activeCones.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
+        const inactiveMax = inactive.reduce((mx, j) => Math.max(mx, gaussian(wl, cones[j].mean, cones[j].sd)), 0);
+        return Math.max(0, activeSum - inactiveMax);
       });
-      return SPD_WLS.map((_, i) => parts.reduce((s, p) => s + p[i], 0));
-    }
+	  const maxActivation = activations.indexOf(Math.max(...activations))
+	  return SPD_WLS[maxActivation]
+	}
+	
+	function buildSyntheticSingle(cone, pct) {
+	  const raw = SPD_WLS.map(wl => gaussian(wl, cone.mean, cone.sd))
+	  // normalize
+	  const norm = Math.pow(Math.max(raw.reduce((sum, v, i) => sum + v * CIE_Y[i], 0), 1e-9), 0.35);
+	  // apply percentage
+	  return raw.map(v => 0.01 * pct * v / norm);
+	}
 	
 	function buildSyntheticSPD(cones, pcts) {
-	  return SPD_WLS.map((wl, i) => [0, 1, 2, 3].reduce((s, i) => s + 0.01*pcts[i]*gaussian(wl, cones[i].mean, cones[i].sd), 0))
+	  const parts = [0, 1, 2, 3].map((_, i) => buildSyntheticSingle(cones[i], pcts[i]))
+	  return SPD_WLS.map((_, i) => parts.reduce((s, p) => s + p[i], 0));
 	}
 
-    // Compute all colors
-    function computeColorsOld() {
-      const cones = getCones();
-
-      // Primaries: SPD favoring cone i over the rest
-      const primaries = [0, 1, 2, 3].map(i => {
-        const spd = buildSPD(cones, [i]);
-		const wl = inferPrimaryWavelength(cones, [i]);
-        return { spd, label: `Primary ${i + 1} (${wl} nm)`, cones: [i] };
-      });
-
-      // Secondaries: C(4,2)=6, energy-balanced mix of two primary SPDs
-      const secondaries = [];
-      for (let a = 0; a < 4; a++) {
-        for (let b = a + 1; b < 4; b++) {
-          // const spd = buildMixedSPD(cones, [a, b]);
-		  const spd = buildSyntheticSPD(cones, [0, 1, 2, 3].map(j => j == a || j == b ? 50 : 0));
-          secondaries.push({ spd, label: `Secondary ${a+1}+${b+1}`, cones: [a, b] });
-        }
-      }
-
-      // Tertiaries: C(4,3)=4, energy-balanced mix of three primary SPDs
-      const tertiaries = [];
-      for (let excl = 0; excl < 4; excl++) {
-        // const trio = [0,1,2,3].filter(j => j !== excl);
-        // const spd = buildMixedSPD(cones, trio);
-		const trio = [0, 1, 2, 3].map(j => j == excl ? 0 : 33);
-		const spd = buildSyntheticSPD(cones, trio);
-        tertiaries.push({ spd, label: `Tertiary ${[0, 1, 2, 3].filter(j => j !== excl).map(j => j+1).join('+')}`, cones: trio });
-      }
-	  
-	  const customColors = [{ spd: buildSyntheticSPD(cones, getCustomPrimaries()), label: `Custom color`, cones }];
-	  
-      return { primaries, secondaries, tertiaries, customColors };
-    }
-	
 	function computeColorsNew() {
 	  const cones = getCones();
 	  const primaryWavelengths = [0, 1, 2, 3].map(i => inferPrimaryWavelength(cones, [i]))
@@ -279,7 +247,7 @@
 
 	  const primaries = [0, 1, 2, 3].map(i => {
         const spd = buildSyntheticSPD(primaryGaussians, [0, 1, 2, 3].map(j => j === i ? 100 : 0));
-        return { spd, label: `Primary ${i + 1}`, cones: [i] };
+        return { spd, label: `Primary ${i + 1} (${primaryWavelengths[i]} nm)`, cones: [i] };
       });
 	  
       const secondaries = [];
