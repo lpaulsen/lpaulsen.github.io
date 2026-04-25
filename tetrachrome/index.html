@@ -22,6 +22,11 @@
     .color-swatch .wavelength { font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem; }
     .color-swatch .color-name { font-weight: 600; font-size: 0.9rem; }
     .color-swatch canvas.mini-graph { width: 100%; height: 50px; border-radius: 4px; margin-top: 0.5rem; background: rgba(0,0,0,0.25); }
+    .custom-color-inputs { display: flex; flex-wrap: wrap; gap: 1rem}
+	.custom-color-input-card { background: #16213e; border-radius: 8px; padding: 1rem; text-align: center; flex: 0 0 calc(25% - 0.75rem); }
+	.custom-color-input-card h3 { margin-bottom: 0.75rem; font-size: 0.95rem; }
+    .custom-color-input-card label { display: block; font-size: 0.8rem; color: #aaa; margin-bottom: 0.2rem; }
+	.custom-color-input-card input { width: 80px; padding: 0.3rem; border: 1px solid #444; border-radius: 4px; background: #0f3460; color: #fff; text-align: center; font-size: 0.95rem; margin-bottom: 0.5rem; }
     canvas#spectrumCanvas { width: 100%; height: 200px; background: #16213e; border-radius: 8px; margin-bottom: 2rem; }
   </style>
 </head>
@@ -30,7 +35,6 @@
   <p class="subtitle">Define 4 cone types by peak wavelength (nm) and standard deviation to explore a hypothetical tetrachromatic color space.</p>
 
   <div class="cone-inputs" id="coneInputs"></div>
-
   <canvas id="spectrumCanvas" height="200"></canvas>
 
   <div class="color-section">
@@ -45,6 +49,12 @@
     <h2>Tertiary Colors (4)</h2>
     <div class="color-grid" id="tertiaries"></div>
   </div>
+  
+  <div class="color-section">
+    <h2>Custom Colors</h2>
+    <div class="color-grid" id="customColors"></div>
+  </div>
+  <div class="custom-color-inputs" id="customColorInputs"></div>
 
   <script>
     // Default: 4 evenly-spaced cones across visible spectrum (380-700nm)
@@ -81,6 +91,18 @@
       `;
       coneInputsEl.appendChild(card);
     });
+	
+	const customColorInputsE1 = document.getElementById('customColorInputs');
+	[0, 1, 2, 3].forEach((c, i) => {
+		const card = document.createElement('div');
+		card.className = 'custom-color-input-card';
+		card.innerHTML = `
+		  <h3>Primary ${i+1}</h3>
+		  <label>Percent</label>
+		  <input type="number" id="pct${i}" value="${c}" min="0" max="100" step="1">
+		`;
+		customColorInputsE1.appendChild(card);
+	});
 
     // Gaussian
     function gaussian(x, mean, sd) {
@@ -95,6 +117,10 @@
         sd: parseFloat(document.getElementById(`sd${i}`).value),
       }));
     }
+	
+	function getCustomPrimaries() {
+	  return [0, 1, 2, 3].map(i => parseFloat(document.getElementById(`pct${i}`).value));
+	}
 
     // Wavelength to RGB (Dan Bruton's algorithm, adjusted)
     function wavelengthToRGB(wl) {
@@ -155,6 +181,18 @@
       });
     }
 
+	
+	function inferPrimaryWavelength(cones, activeCones) {
+	  const inactive = [0,1,2,3].filter(j => !activeCones.includes(j));
+	  const activations = SPD_WLS.map(wl => {
+        const activeSum = activeCones.reduce((s, j) => s + gaussian(wl, cones[j].mean, cones[j].sd), 0);
+        const inactiveMax = inactive.reduce((mx, j) => Math.max(mx, gaussian(wl, cones[j].mean, cones[j].sd)), 0);
+        return Math.max(0, activeSum - inactiveMax);
+      });
+	  const maxActivation = activations.indexOf(Math.max(...activations))
+	  return SPD_WLS[maxActivation]
+	}
+
     // Convert SPD to XYZ then to sRGB
     function spdToRGB(spd) {
       let X = 0, Y = 0, Z = 0;
@@ -164,8 +202,8 @@
         Z += spd[i] * CIE_Z[i];
       }
       // Normalize so the brightest color channel approaches 1
-      const scale = 1 / Math.max(Y, 0.0001);
-      X *= scale; Y *= scale; Z *= scale;
+      // const scale = 1 / Math.max(Y, 0.0001);
+      // X *= scale; Y *= scale; Z *= scale;
 
       // XYZ to linear sRGB (D65)
       let r =  3.2406 * X - 1.5372 * Y - 0.4986 * Z;
@@ -193,22 +231,28 @@
       });
       return SPD_WLS.map((_, i) => parts.reduce((s, p) => s + p[i], 0));
     }
+	
+	function buildSyntheticSPD(cones, pcts) {
+	  return SPD_WLS.map((wl, i) => [0, 1, 2, 3].reduce((s, i) => s + 0.01*pcts[i]*gaussian(wl, cones[i].mean, cones[i].sd), 0))
+	}
 
     // Compute all colors
-    function computeColors() {
+    function computeColorsOld() {
       const cones = getCones();
 
       // Primaries: SPD favoring cone i over the rest
       const primaries = [0, 1, 2, 3].map(i => {
         const spd = buildSPD(cones, [i]);
-        return { spd, label: `Primary ${i + 1}`, cones: [i] };
+		const wl = inferPrimaryWavelength(cones, [i]);
+        return { spd, label: `Primary ${i + 1} (${wl} nm)`, cones: [i] };
       });
 
       // Secondaries: C(4,2)=6, energy-balanced mix of two primary SPDs
       const secondaries = [];
       for (let a = 0; a < 4; a++) {
         for (let b = a + 1; b < 4; b++) {
-          const spd = buildMixedSPD(cones, [a, b]);
+          // const spd = buildMixedSPD(cones, [a, b]);
+		  const spd = buildSyntheticSPD(cones, [0, 1, 2, 3].map(j => j == a || j == b ? 50 : 0));
           secondaries.push({ spd, label: `Secondary ${a+1}+${b+1}`, cones: [a, b] });
         }
       }
@@ -216,13 +260,51 @@
       // Tertiaries: C(4,3)=4, energy-balanced mix of three primary SPDs
       const tertiaries = [];
       for (let excl = 0; excl < 4; excl++) {
-        const trio = [0,1,2,3].filter(j => j !== excl);
-        const spd = buildMixedSPD(cones, trio);
-        tertiaries.push({ spd, label: `Tertiary ${trio.map(j => j+1).join('+')}`, cones: trio });
+        // const trio = [0,1,2,3].filter(j => j !== excl);
+        // const spd = buildMixedSPD(cones, trio);
+		const trio = [0, 1, 2, 3].map(j => j == excl ? 0 : 33);
+		const spd = buildSyntheticSPD(cones, trio);
+        tertiaries.push({ spd, label: `Tertiary ${[0, 1, 2, 3].filter(j => j !== excl).map(j => j+1).join('+')}`, cones: trio });
+      }
+	  
+	  const customColors = [{ spd: buildSyntheticSPD(cones, getCustomPrimaries()), label: `Custom color`, cones }];
+	  
+      return { primaries, secondaries, tertiaries, customColors };
+    }
+	
+	function computeColorsNew() {
+	  const cones = getCones();
+	  const primaryWavelengths = [0, 1, 2, 3].map(i => inferPrimaryWavelength(cones, [i]))
+	  const primaryGaussians = [0, 1, 2, 3].map(i => ({ mean: primaryWavelengths[i], sd: 15 }))
+
+	  const primaries = [0, 1, 2, 3].map(i => {
+        const spd = buildSyntheticSPD(primaryGaussians, [0, 1, 2, 3].map(j => j === i ? 100 : 0));
+        return { spd, label: `Primary ${i + 1}`, cones: [i] };
+      });
+	  
+      const secondaries = [];
+      for (let a = 0; a < 4; a++) {
+        for (let b = a + 1; b < 4; b++) {
+		  const spd = buildSyntheticSPD(primaryGaussians, [0, 1, 2, 3].map(j => j == a || j == b ? 50 : 0));
+          secondaries.push({ spd, label: `Secondary ${a+1}+${b+1}`, cones: [a, b] });
+        }
       }
 
-      return { primaries, secondaries, tertiaries };
-    }
+      const tertiaries = [];
+      for (let excl = 0; excl < 4; excl++) {
+		const trio = [0, 1, 2, 3].map(j => j == excl ? 0 : 33);
+		const spd = buildSyntheticSPD(primaryGaussians, trio);
+        tertiaries.push({ spd, label: `Tertiary ${[0, 1, 2, 3].filter(j => j !== excl).map(j => j+1).join('+')}`, cones: trio });
+      }
+	  
+	  const customColors = [{ spd: buildSyntheticSPD(primaryGaussians, getCustomPrimaries()), label: `Custom color`, cones }];
+
+      return { primaries, secondaries, tertiaries, customColors };
+	}
+	
+	function computeColors() {
+	  return computeColorsNew();
+	}
 
     // Draw a mini SPD graph on a canvas for a color swatch
     function drawMiniGraph(canvas, spd, primaryHexColors, activeCones) {
@@ -342,7 +424,7 @@
 
     function update() {
       const cones = getCones();
-      const { primaries, secondaries, tertiaries } = computeColors();
+      const { primaries, secondaries, tertiaries, customColors } = computeColors();
 
       // Derive hex colors from each primary's SPD
       const primaryHexColors = primaries.map(p => {
@@ -356,12 +438,20 @@
         card.style.borderLeft = `4px solid ${primaryHexColors[i]}`;
         card.querySelector('h3').style.color = primaryHexColors[i];
       });
+	  
+	  const customCards = document.querySelectorAll('.custom-color-input-card');
+      customCards.forEach((card, i) => {
+        card.style.borderLeft = `4px solid ${primaryHexColors[i]}`;
+        card.querySelector('h3').style.color = primaryHexColors[i];
+      });
 
       renderSwatches('primaries', primaries, cones, primaryHexColors);
       renderSwatches('secondaries', secondaries, cones, primaryHexColors);
       renderSwatches('tertiaries', tertiaries, cones, primaryHexColors);
+	  renderSwatches('customColors', customColors, cones, primaryHexColors);
       drawSpectrum(cones, primaryHexColors);
     }
+
 
     // Update URL query params to reflect current settings
     function updateURL() {
@@ -379,6 +469,9 @@
     document.getElementById('coneInputs').addEventListener('input', () => {
       update();
       updateURL();
+    });
+	document.getElementById('customColorInputs').addEventListener('input', () => {
+      update();
     });
     window.addEventListener('resize', update);
 
